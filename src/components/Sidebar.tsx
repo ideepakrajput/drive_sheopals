@@ -11,6 +11,7 @@ import {
     Cloud,
     Plus
 } from 'lucide-react';
+import { NewItemButton } from '@/components/NewItemButton';
 
 const navigation = [
     { name: 'My Files', href: '/dashboard', icon: FolderIcon },
@@ -33,10 +34,7 @@ export function Sidebar() {
             </div>
 
             <div className="px-4 pb-6">
-                <button className="w-full flex items-center justify-center space-x-2 bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white dark:text-black p-3 rounded-xl transition-colors shadow-sm font-medium">
-                    <Plus className="w-5 h-5" />
-                    <span>New</span>
-                </button>
+                <NewItemButton />
             </div>
 
             <nav className="flex-1 px-3 space-y-1 overflow-y-auto">

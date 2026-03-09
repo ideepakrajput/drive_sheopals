@@ -1,5 +1,7 @@
-import { Folder, MoreVertical, FileText, FileImage, File } from 'lucide-react';
+import { Folder, MoreVertical, FileText, FileImage, File, Download } from 'lucide-react';
 import { getSession } from '@/lib/auth';
+import FileUploadButton from '@/components/FileUploadButton';
+import FileActions from '@/components/FileActions';
 import { pool } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
@@ -27,6 +29,7 @@ export default async function DashboardPage() {
         <div className="p-8">
             <div className="mb-8 flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">My Files</h1>
+                <FileUploadButton />
             </div>
 
             {folders.length === 0 && files.length === 0 ? (
@@ -108,9 +111,7 @@ export default async function DashboardPage() {
                                                         {(file.size / 1024 / 1024).toFixed(2)} MB
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                        <button className="text-neutral-400 dark:text-neutral-500 hover:text-black dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <MoreVertical className="w-5 h-5" />
-                                                        </button>
+                                                        <FileActions file={file} />
                                                     </td>
                                                 </tr>
                                             );

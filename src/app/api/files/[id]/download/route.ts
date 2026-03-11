@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import fs from "fs";
 import path from "path";
+import { getFolderPath } from "@/lib/server-utils";
 
 // Helper to wrap Node.js stream into Web ReadableStream
 function streamFile(filepath: string): ReadableStream<Uint8Array> {
@@ -65,7 +66,13 @@ export async function GET(
         }
 
         const baseDrivePath = process.env.SERVER_BASE_DRIVE_PATH || "D:\\sheopals_drive";
-        const filePath = path.join(baseDrivePath, file.stored_name);
+        const userDrivePath = path.join(baseDrivePath, file.owner_id);
+        
+        // Resolve exactly where this file is physically hidden in the deep file tree
+        const subFolderPath = await getFolderPath(file.folder_id);
+        const fullPhysicalFolderPath = path.join(userDrivePath, subFolderPath);
+        
+        const filePath = path.join(fullPhysicalFolderPath, file.stored_name);
 
         if (!fs.existsSync(filePath)) {
             console.error("File is missing from disk:", filePath);

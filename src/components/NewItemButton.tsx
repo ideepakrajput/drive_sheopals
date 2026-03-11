@@ -38,7 +38,7 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
     // File/Folder Upload Ref & Hook
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
-    const { mutate: uploadFile } = useUploadFile();
+    const { mutateAsync: uploadFileAsync } = useUploadFile();
 
     const handleCreateFolder = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -74,28 +74,24 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        // Upload each file (could run in parallel, doing sequentially here for simplicity)
         for(let i = 0; i < files.length; i++) {
            const file = files[i];
-           const toastId = toast.loading(`Uploading ${file.name}...`);
+           const relativePath = file.webkitRelativePath || "";
+           const displayName = file.name.includes('/') ? file.name.split('/').pop() || file.name : file.name;
            
-           uploadFile(
-                { file, folderId },
-                {
-                    onSuccess: () => {
-                        toast.success(`${file.name} uploaded`, { id: toastId });
-                    },
-                    onError: (error: any) => {
-                        toast.error(error.message || `Failed to upload ${file.name}`, { id: toastId });
-                    },
-                    onSettled: () => {
-                       if (fileInputRef.current) {
-                            fileInputRef.current.value = "";
-                        }
-                    }
-                }
-            );
+           const toastId = toast.loading(`Uploading ${displayName}...`);
+           
+           try {
+               await uploadFileAsync({ file, folderId, relativePath });
+               toast.success(`${displayName} uploaded`, { id: toastId });
+           } catch(error: any) {
+               toast.error(error.message || `Failed to upload ${displayName}`, { id: toastId });
+           }
         }
+        
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        if (folderInputRef.current) folderInputRef.current.value = "";
+        router.refresh();
     };
 
     return (

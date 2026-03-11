@@ -1,36 +1,80 @@
-import { Folder, MoreVertical, FileText, FileImage, File, Download } from 'lucide-react';
+import { Folder, MoreVertical, FileText, FileImage, File, ChevronRight, Home } from 'lucide-react';
 import { getSession } from '@/lib/auth';
 import FileUploadButton from '@/components/FileUploadButton';
 import FileActions from '@/components/FileActions';
 import { pool } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { getFolderPath } from '@/lib/server-utils';
 
-export default async function DashboardPage() {
+export default async function FolderPage({ params }: { params: Promise<{ folderId: string }> }) {
     const session = await getSession();
     if (!session) {
         redirect('/login');
     }
 
+    const resolvedParams = await params;
+    const folderId = resolvedParams.folderId;
     const userId = session.user.id;
 
-    // Fetch Root Folders
-    const [folders]: any = await pool.query(
-        'SELECT * FROM folders WHERE owner_id = ? AND parent_folder_id IS NULL AND is_trashed = FALSE ORDER BY name ASC',
-        [userId]
+    // Fetch Target Folder to verify access and get name
+    const [targetFolderArr]: any = await pool.query(
+        'SELECT * FROM folders WHERE id = ? AND owner_id = ? AND is_trashed = FALSE',
+        [folderId, userId]
     );
 
-    // Fetch Root Files
+    if (targetFolderArr.length === 0) {
+        redirect('/dashboard');
+    }
+    const currentFolder = targetFolderArr[0];
+
+    // Build breadcrumbs
+    const breadcrumbs = [];
+    let currentTrackerId = currentFolder.parent_folder_id;
+    while(currentTrackerId) {
+        const [parentArr]: any = await pool.query(
+            'SELECT id, name, parent_folder_id FROM folders WHERE id = ? AND owner_id = ?',
+            [currentTrackerId, userId]
+        );
+        if (parentArr.length === 0) break;
+        const p = parentArr[0];
+        breadcrumbs.unshift({ id: p.id, name: p.name });
+        currentTrackerId = p.parent_folder_id;
+    }
+
+    // Fetch Folders in this folder
+    const [folders]: any = await pool.query(
+        'SELECT * FROM folders WHERE owner_id = ? AND parent_folder_id = ? AND is_trashed = FALSE ORDER BY name ASC',
+        [userId, folderId]
+    );
+
+    // Fetch Files in this folder
     const [files]: any = await pool.query(
-        'SELECT * FROM files WHERE owner_id = ? AND folder_id IS NULL AND is_trashed = FALSE ORDER BY created_at DESC',
-        [userId]
+        'SELECT * FROM files WHERE owner_id = ? AND folder_id = ? AND is_trashed = FALSE ORDER BY created_at DESC',
+        [userId, folderId]
     );
 
     return (
         <div className="p-8">
             <div className="mb-8 flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">My Files</h1>
-                <FileUploadButton />
+                <div className="flex items-center space-x-2 text-xl font-medium text-neutral-600 dark:text-neutral-400">
+                    <Link href="/dashboard" className="hover:bg-neutral-100 dark:hover:bg-neutral-800 p-2 rounded-md transition-colors flex items-center justify-center">
+                       <Home className="w-5 h-5" />
+                    </Link>
+                    <ChevronRight className="w-5 h-5 flex-shrink-0" />
+                    {breadcrumbs.map((bc) => (
+                        <div key={bc.id} className="flex items-center space-x-2">
+                           <Link href={`/dashboard/folders/${bc.id}`} className="hover:text-black dark:hover:text-white transition-colors truncate max-w-[150px]">
+                               {bc.name}
+                           </Link>
+                           <ChevronRight className="w-5 h-5 flex-shrink-0" />
+                        </div>
+                    ))}
+                    <span className="text-black dark:text-white font-semibold truncate max-w-[200px]">
+                        {currentFolder.name}
+                    </span>
+                </div>
+                <FileUploadButton folderId={folderId} />
             </div>
 
             {folders.length === 0 && files.length === 0 ? (
@@ -46,7 +90,6 @@ export default async function DashboardPage() {
                             <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-4">Folders</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {folders.map((folder: any, i: number) => {
-                                    // Generate consistent pseudo-random vibrant colors based on folder ID/index
                                     const colors = ['text-blue-500 fill-blue-500/20', 'text-amber-500 fill-amber-500/20', 'text-emerald-500 fill-emerald-500/20', 'text-purple-500 fill-purple-500/20', 'text-rose-500 fill-rose-500/20'];
                                     const colorClass = colors[i % colors.length];
 

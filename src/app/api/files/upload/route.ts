@@ -4,6 +4,7 @@ import { pool } from "@/lib/db";
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
+import { getFolderPath } from "@/lib/server-utils";
 
 export async function POST(request: NextRequest) {
     try {
@@ -24,22 +25,63 @@ export async function POST(request: NextRequest) {
              folderId = null;
         }
 
+        const relativePath = formData.get("relativePath") as string | null;
+        const userId = session.user.id;
+        let targetFolderId = folderId;
+
+        if (relativePath && relativePath.includes("/")) {
+            const parts = relativePath.split("/");
+            const folderNames = parts.slice(0, -1);
+
+            for (const fName of folderNames) {
+                let query = `SELECT id FROM folders WHERE name = ? AND owner_id = ? AND parent_folder_id `;
+                const params: any[] = [fName, userId];
+                if (targetFolderId) {
+                    query += `= ?`;
+                    params.push(targetFolderId);
+                } else {
+                    query += `IS NULL`;
+                }
+
+                const [existing] = await pool.query(query, params) as any[];
+
+                if (existing && existing.length > 0) {
+                    targetFolderId = existing[0].id;
+                } else {
+                    const newFolderId = crypto.randomUUID();
+                    await pool.query(
+                        `INSERT INTO folders (id, name, parent_folder_id, owner_id) VALUES (?, ?, ?, ?)`,
+                        [newFolderId, fName, targetFolderId, userId]
+                    );
+                    targetFolderId = newFolderId;
+                }
+            }
+        }
+
+        let originalName = file.name;
+        if (originalName.includes("/")) {
+            originalName = originalName.split("/").pop() || originalName;
+        }
+        
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        const originalName = file.name;
         const mimeType = file.type;
         const size = file.size;
         const storedName = crypto.randomUUID();
         const fileId = crypto.randomUUID();
-        const userId = session.user.id;
 
         const baseDrivePath = process.env.SERVER_BASE_DRIVE_PATH || "D:\\sheopals_drive";
+        const userDrivePath = path.join(baseDrivePath, userId);
         
-        // Ensure directory exists
-        await fs.mkdir(baseDrivePath, { recursive: true });
+        // Resolve nested internal folder structure
+        const subFolderPath = await getFolderPath(targetFolderId);
+        const fullPhysicalFolderPath = path.join(userDrivePath, subFolderPath);
+        
+        // Ensure the full deep directory exists on disk
+        await fs.mkdir(fullPhysicalFolderPath, { recursive: true });
 
-        const filePath = path.join(baseDrivePath, storedName);
+        const filePath = path.join(fullPhysicalFolderPath, storedName);
         
         await fs.writeFile(filePath, buffer);
 
@@ -47,7 +89,7 @@ export async function POST(request: NextRequest) {
         await pool.query(
             `INSERT INTO files (id, original_name, stored_name, folder_id, owner_id, size, mime_type)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [fileId, originalName, storedName, folderId, userId, size, mimeType]
+            [fileId, originalName, storedName, targetFolderId, userId, size, mimeType]
         );
 
         return NextResponse.json({ success: true, fileId });

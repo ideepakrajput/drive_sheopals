@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import crypto from "crypto";
+import fs from "fs/promises";
+import path from "path";
+import { getFolderPath } from "@/lib/server-utils";
 
 export async function POST(request: NextRequest) {
     try {
@@ -26,6 +29,14 @@ export async function POST(request: NextRequest) {
             `INSERT INTO folders (id, name, parent_folder_id, owner_id) VALUES (?, ?, ?, ?)`,
             [folderId, name, finalParentId, userId]
         );
+
+        // Also create the physical folder on disk
+        const baseDrivePath = process.env.SERVER_BASE_DRIVE_PATH || "D:\\sheopals_drive";
+        const userDrivePath = path.join(baseDrivePath, userId);
+        const subFolderPath = await getFolderPath(folderId); // Use the newly created folder id to get the full path
+        const fullPhysicalFolderPath = path.join(userDrivePath, subFolderPath);
+        
+        await fs.mkdir(fullPhysicalFolderPath, { recursive: true });
 
         return NextResponse.json({ success: true, folderId });
     } catch (error: any) {

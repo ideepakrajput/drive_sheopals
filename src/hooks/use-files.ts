@@ -5,11 +5,14 @@ export const useUploadFile = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ file, folderId }: { file: File; folderId?: string | null }) => {
+        mutationFn: async ({ file, folderId, relativePath }: { file: File; folderId?: string | null; relativePath?: string }) => {
             const formData = new FormData();
             formData.append('file', file);
             if (folderId) {
                 formData.append('folderId', folderId);
+            }
+            if (relativePath) {
+                formData.append('relativePath', relativePath);
             }
 
             return await apiClient.post('/files/upload', formData, {

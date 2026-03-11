@@ -23,6 +23,8 @@ const navigation = [
 
 export function Sidebar() {
     const pathname = usePathname();
+    const folderIdMatch = pathname?.match(/\/dashboard\/folders\/([^\/]+)/);
+    const currentFolderId = folderIdMatch ? folderIdMatch[1] : null;
 
     return (
         <div className="w-64 bg-neutral-50 dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-800 flex flex-col h-full hidden md:flex transition-colors">
@@ -34,7 +36,7 @@ export function Sidebar() {
             </div>
 
             <div className="px-4 pb-6">
-                <NewItemButton />
+                <NewItemButton folderId={currentFolderId} />
             </div>
 
             <nav className="flex-1 px-3 space-y-1 overflow-y-auto">

@@ -27,3 +27,18 @@ export const useUploadFile = () => {
         }
     });
 };
+export const useRenameFile = () => {
+    return useMutation({
+        mutationFn: async ({ id, name }: { id: string; name: string }) => {
+            return await apiClient.patch(`/files/${id}`, { name });
+        }
+    });
+};
+
+export const useStarFile = () => {
+    return useMutation({
+        mutationFn: async ({ id, starred }: { id: string; starred: boolean }) => {
+            return await apiClient.post(`/files/${id}/star`, { starred });
+        }
+    });
+};

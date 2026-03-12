@@ -76,7 +76,20 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
 
         for(let i = 0; i < files.length; i++) {
            const file = files[i];
-           const relativePath = file.webkitRelativePath || "";
+           let relativePath = file.webkitRelativePath || "";
+           
+           // If it's a folder upload, handle user request:
+           // 1. Don't upload files in the root folder of the selection (only subfolders)
+           // 2. Keep the root folder structure (so "App Designs" folder is created)
+           if (relativePath && relativePath.includes('/')) {
+               const parts = relativePath.split('/');
+               if (parts.length <= 2) {
+                   // This is a file in the root of the uploaded folder, skip it
+                   // as per user request: "don't want to upload in first folder"
+                   continue;
+               }
+           }
+
            const displayName = file.name.includes('/') ? file.name.split('/').pop() || file.name : file.name;
            
            const toastId = toast.loading(`Uploading ${displayName}...`);

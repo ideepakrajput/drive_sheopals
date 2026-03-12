@@ -80,9 +80,15 @@ export async function GET(
         }
 
         const dataStream = streamFile(filePath);
+        const isPreview = request.nextUrl.searchParams.get("preview") === "1";
 
         const responseHeaders = new Headers();
-        responseHeaders.set("Content-Disposition", `attachment; filename="${file.original_name}"`);
+        if (isPreview) {
+            responseHeaders.set("Content-Disposition", `inline; filename="${file.original_name}"`);
+        } else {
+            responseHeaders.set("Content-Disposition", `attachment; filename="${file.original_name}"`);
+        }
+        
         responseHeaders.set("Content-Type", file.mime_type || "application/octet-stream");
         responseHeaders.set("Content-Length", file.size.toString());
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, FileImage, File } from 'lucide-react';
+import { FileText, FileImage, File, Share2, Star } from 'lucide-react';
 import FileActions from './FileActions';
 import FilePreview from './FilePreview';
 
@@ -43,6 +43,8 @@ export default function FileTable({ files }: { files: any[] }) {
                             let FileIcon = File;
                             if (file.mime_type?.includes('image/')) FileIcon = FileImage;
                             else if (file.mime_type?.includes('text/')) FileIcon = FileText;
+                            const isStarred = Boolean(file.is_starred);
+                            const isShared = Boolean(file.is_shared);
 
                             return (
                                 <tr 
@@ -54,7 +56,17 @@ export default function FileTable({ files }: { files: any[] }) {
                                         <div className="flex items-center">
                                             <FileIcon className="flex-shrink-0 h-5 w-5 text-neutral-400" />
                                             <div className="ml-4 truncate max-w-xs md:max-w-md">
-                                                <div className="text-sm font-medium text-neutral-900 dark:text-neutral-200 truncate">{file.original_name}</div>
+                                                <div className="flex items-center gap-2 truncate">
+                                                    <div className="text-sm font-medium text-neutral-900 dark:text-neutral-200 truncate">{file.original_name}</div>
+                                                    {isStarred && (
+                                                        <Star className="h-4 w-4 flex-shrink-0 fill-yellow-400 text-yellow-400" />
+                                                    )}
+                                                    {isShared && (
+                                                        <span title={file.shared_tooltip || "Shared"} className="flex flex-shrink-0 items-center">
+                                                            <Share2 className="h-4 w-4 text-emerald-500" />
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </td>

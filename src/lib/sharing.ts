@@ -168,3 +168,38 @@ export async function removeResourceShares(resourceType: ResourceType, resourceI
         [resourceType, ...resourceIds]
     );
 }
+
+export async function getResourceShareMetadata(resourceType: ResourceType, resourceIds: string[]) {
+    if (resourceIds.length === 0) {
+        return new Map<string, { count: number; tooltip: string }>();
+    }
+
+    const placeholders = resourceIds.map(() => "?").join(", ");
+    const [rows]: any = await pool.query(
+        `SELECT s.resource_id, s.permission, u.email, u.name
+         FROM shares s
+         INNER JOIN users u ON u.id = s.shared_with_user_id
+         WHERE s.resource_type = ? AND s.resource_id IN (${placeholders})
+         ORDER BY COALESCE(u.name, u.email) ASC`,
+        [resourceType, ...resourceIds]
+    );
+
+    const grouped = new Map<string, { count: number; tooltip: string }>();
+
+    for (const row of rows) {
+        const label = row.name ? `${row.name} (${row.email})` : row.email;
+        const entry = grouped.get(row.resource_id);
+
+        if (entry) {
+            entry.count += 1;
+            entry.tooltip = `${entry.tooltip}\n${label} - ${row.permission}`;
+        } else {
+            grouped.set(row.resource_id, {
+                count: 1,
+                tooltip: `${label} - ${row.permission}`,
+            });
+        }
+    }
+
+    return grouped;
+}

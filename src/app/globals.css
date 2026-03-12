@@ -218,6 +218,7 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    user-select: none !important;
   }
 
   body {
@@ -226,5 +227,12 @@
 
   html {
     @apply font-sans;
+  }
+
+  input,
+  textarea,
+  select,
+  [contenteditable="true"] {
+    user-select: text;
   }
 }

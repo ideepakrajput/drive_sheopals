@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { pool } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import FileTable from '@/components/FileTable';
+import { getResourceShareMetadata } from '@/lib/sharing';
 
 export default async function RecentPage() {
     const session = await getSession();
@@ -17,6 +18,12 @@ export default async function RecentPage() {
         'SELECT * FROM files WHERE owner_id = ? AND is_trashed = FALSE ORDER BY updated_at DESC LIMIT 20',
         [userId]
     );
+    const fileShares = await getResourceShareMetadata('file', files.map((file: any) => file.id));
+    const visibleFiles = files.map((file: any) => ({
+        ...file,
+        is_shared: fileShares.has(file.id),
+        shared_tooltip: fileShares.get(file.id)?.tooltip,
+    }));
 
     return (
         <div className="p-8">
@@ -27,7 +34,7 @@ export default async function RecentPage() {
                 </h1>
             </div>
 
-            {files.length === 0 ? (
+            {visibleFiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-neutral-500 text-center">
                     <div className="w-20 h-20 mb-6 bg-blue-500/10 rounded-full flex items-center justify-center">
                         <Clock className="w-10 h-10 text-blue-500/30" />
@@ -40,7 +47,7 @@ export default async function RecentPage() {
             ) : (
                 <div>
                     <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-4">Last 20 Files</h2>
-                    <FileTable files={files} />
+                    <FileTable files={visibleFiles} />
                 </div>
             )}
         </div>

@@ -1,4 +1,4 @@
-import { Folder, ChevronRight, Home } from 'lucide-react';
+import { Folder, ChevronRight, Home, Share2 } from 'lucide-react';
 import { getSession } from '@/lib/auth';
 import FileUploadButton from '@/components/FileUploadButton';
 import { pool } from '@/lib/db';
@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import FileTable from '@/components/FileTable';
 import FolderActions from '@/components/FolderActions';
-import { getFolderAccess } from '@/lib/sharing';
+import { getFolderAccess, getResourceShareMetadata } from '@/lib/sharing';
 
 export default async function FolderPage({ params }: { params: Promise<{ folderId: string }> }) {
     const session = await getSession();
@@ -74,16 +74,26 @@ export default async function FolderPage({ params }: { params: Promise<{ folderI
          ORDER BY f.created_at DESC`,
         [currentFolder.owner_id, folderId]
     );
+    const folderShares = isOwner ? await getResourceShareMetadata('folder', folders.map((folder: any) => folder.id)) : null;
+    const fileShares = isOwner ? await getResourceShareMetadata('file', files.map((file: any) => file.id)) : null;
 
     const visibleFolders = folders.map((folder: any) => ({
         ...folder,
         is_owner: isOwner,
         access_level: accessLevel,
+        is_shared: isOwner ? folderShares?.has(folder.id) : true,
+        shared_tooltip: isOwner
+            ? folderShares?.get(folder.id)?.tooltip
+            : `Shared by ${currentFolder.owner_name || currentFolder.owner_email} - ${accessLevel} access`,
     }));
     const visibleFiles = files.map((file: any) => ({
         ...file,
         is_owner: isOwner,
         access_level: accessLevel,
+        is_shared: isOwner ? fileShares?.has(file.id) : true,
+        shared_tooltip: isOwner
+            ? fileShares?.get(file.id)?.tooltip
+            : `Shared by ${currentFolder.owner_name || currentFolder.owner_email} - ${accessLevel} access`,
     }));
 
     return (
@@ -136,7 +146,14 @@ export default async function FolderPage({ params }: { params: Promise<{ folderI
                                             <Link href={`/dashboard/folders/${folder.id}`} className="min-w-0 flex flex-1 items-center space-x-3 truncate">
                                                 <Folder className={`w-5 h-5 flex-shrink-0 ${colorClass}`} />
                                                 <div className="min-w-0">
-                                                    <div className="text-sm font-medium text-neutral-900 dark:text-neutral-200 truncate">{folder.name}</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="text-sm font-medium text-neutral-900 dark:text-neutral-200 truncate">{folder.name}</div>
+                                                        {folder.is_shared && (
+                                                            <span title={folder.shared_tooltip || 'Shared'} className="flex flex-shrink-0 items-center">
+                                                                <Share2 className="h-4 w-4 text-emerald-500" />
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {!folder.is_owner && (
                                                         <div className="truncate text-xs text-neutral-500 dark:text-neutral-400">{folder.access_level} access</div>
                                                     )}

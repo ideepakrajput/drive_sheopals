@@ -1,4 +1,4 @@
-import { Folder, Users } from 'lucide-react';
+import { Folder, Share2, Users } from 'lucide-react';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { pool } from '@/lib/db';
@@ -38,8 +38,18 @@ export default async function SharedPage() {
         [userId]
     );
 
-    const sharedFolders = folders.map((folder: any) => ({ ...folder, is_owner: false }));
-    const sharedFiles = files.map((file: any) => ({ ...file, is_owner: false }));
+    const sharedFolders = folders.map((folder: any) => ({
+        ...folder,
+        is_owner: false,
+        is_shared: true,
+        shared_tooltip: `Shared by ${folder.owner_name || folder.owner_email} - ${folder.access_level} access`,
+    }));
+    const sharedFiles = files.map((file: any) => ({
+        ...file,
+        is_owner: false,
+        is_shared: true,
+        shared_tooltip: `Shared by ${file.owner_name || file.owner_email} - ${file.access_level} access`,
+    }));
 
     return (
         <div className="p-8">
@@ -75,9 +85,14 @@ export default async function SharedPage() {
                                             <Link href={`/dashboard/folders/${folder.id}`} className="min-w-0 flex flex-1 items-center space-x-3 truncate">
                                                 <Folder className={`w-5 h-5 flex-shrink-0 ${colorClass}`} />
                                                 <div className="min-w-0">
-                                                    <div className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-200">{folder.name}</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-200">{folder.name}</div>
+                                                        <span title={folder.shared_tooltip} className="flex flex-shrink-0 items-center">
+                                                            <Share2 className="h-4 w-4 text-emerald-500" />
+                                                        </span>
+                                                    </div>
                                                     <div className="truncate text-xs text-neutral-500 dark:text-neutral-400">
-                                                        {folder.owner_name || folder.owner_email} · {folder.access_level}
+                                                        {folder.owner_name || folder.owner_email} - {folder.access_level}
                                                     </div>
                                                 </div>
                                             </Link>

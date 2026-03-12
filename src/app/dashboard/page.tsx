@@ -6,6 +6,7 @@ import { pool } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import FileTable from '@/components/FileTable';
+import FolderActions from '@/components/FolderActions';
 
 export default async function DashboardPage() {
     const session = await getSession();
@@ -57,9 +58,9 @@ export default async function DashboardPage() {
                                                 <Folder className={`w-5 h-5 flex-shrink-0 ${colorClass}`} />
                                                 <span className="text-sm font-medium text-neutral-900 dark:text-neutral-200 truncate">{folder.name}</span>
                                             </div>
-                                            <button className="text-neutral-400 dark:text-neutral-500 hover:text-black dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <MoreVertical className="w-4 h-4" />
-                                            </button>
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <FolderActions folder={folder} />
+                                            </div>
                                         </Link>
                                     );
                                 })}

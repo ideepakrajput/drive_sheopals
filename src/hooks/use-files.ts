@@ -42,3 +42,59 @@ export const useStarFile = () => {
         }
     });
 };
+
+export const useTrashFile = () => {
+    return useMutation({
+        mutationFn: async (id: string) => {
+            return await apiClient.post(`/files/${id}/trash`);
+        }
+    });
+};
+
+export const useRenameFolder = () => {
+    return useMutation({
+        mutationFn: async ({ id, name }: { id: string; name: string }) => {
+            return await apiClient.patch(`/folders/${id}`, { name });
+        }
+    });
+};
+
+export const useTrashFolder = () => {
+    return useMutation({
+        mutationFn: async (id: string) => {
+            return await apiClient.post(`/folders/${id}/trash`);
+        }
+    });
+};
+
+export const useRestoreFile = () => {
+    return useMutation({
+        mutationFn: async (id: string) => {
+            return await apiClient.post(`/files/${id}/restore`);
+        }
+    });
+};
+
+export const useDeleteFile = () => {
+    return useMutation({
+        mutationFn: async (id: string) => {
+            return await apiClient.delete(`/files/${id}`);
+        }
+    });
+};
+
+export const useRestoreFolder = () => {
+    return useMutation({
+        mutationFn: async (id: string) => {
+            return await apiClient.post(`/folders/${id}/restore`);
+        }
+    });
+};
+
+export const useDeleteFolder = () => {
+    return useMutation({
+        mutationFn: async (id: string) => {
+            return await apiClient.delete(`/folders/${id}`);
+        }
+    });
+};

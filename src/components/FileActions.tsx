@@ -4,14 +4,14 @@ import { Download, MoreVertical, Star, Edit2, Info, Trash2, ExternalLink } from 
 import { toast } from "sonner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useRenameFile, useStarFile } from "@/hooks/use-files";
+import { useRenameFile, useStarFile, useTrashFile, useRestoreFile, useDeleteFile } from "@/hooks/use-files";
 import { apiClient } from "@/lib/api-client";
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuSeparator, 
-    DropdownMenuTrigger 
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {
     Dialog,
@@ -35,6 +35,9 @@ export default function FileActions({ file }: { file: any }) {
 
     const { mutateAsync: renameFile, isPending: isRenamingLoading } = useRenameFile();
     const { mutateAsync: starFile } = useStarFile();
+    const { mutateAsync: trashFile } = useTrashFile();
+    const { mutateAsync: restoreFile } = useRestoreFile();
+    const { mutateAsync: deleteFile } = useDeleteFile();
 
     const handleDownload = async () => {
         setIsDownloading(true);
@@ -53,7 +56,7 @@ export default function FileActions({ file }: { file: any }) {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            
+
             toast.success("Download started", { id: toastId });
         } catch (error: any) {
             console.error("Download error:", error);
@@ -85,7 +88,7 @@ export default function FileActions({ file }: { file: any }) {
     const handleStar = async () => {
         const toggle = !starred;
         setStarred(toggle); // Optimistic UI
-        
+
         try {
             await starFile({ id: file.id, starred: toggle });
             toast.success(toggle ? "Added to starred" : "Removed from starred");
@@ -93,6 +96,41 @@ export default function FileActions({ file }: { file: any }) {
         } catch (error) {
             setStarred(!toggle); // Rollback
             toast.error("Failed to update star status");
+        }
+    };
+
+    const handleTrash = async () => {
+        const toastId = toast.loading("Moving to trash...");
+        try {
+            await trashFile(file.id);
+            toast.success("Moved to trash", { id: toastId });
+            router.refresh();
+        } catch (error: any) {
+            toast.error("Failed to move to trash", { id: toastId });
+        }
+    };
+
+    const handleRestore = async () => {
+        const toastId = toast.loading("Restoring file...");
+        try {
+            await restoreFile(file.id);
+            toast.success("File restored", { id: toastId });
+            router.refresh();
+        } catch (error: any) {
+            toast.error("Failed to restore", { id: toastId });
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!confirm("Are you sure you want to delete this file permanently? This action cannot be undone.")) return;
+        
+        const toastId = toast.loading("Deleting permanently...");
+        try {
+            await deleteFile(file.id);
+            toast.success("File deleted permanent", { id: toastId });
+            router.refresh();
+        } catch (error: any) {
+            toast.error("Failed to delete", { id: toastId });
         }
     };
 
@@ -107,7 +145,7 @@ export default function FileActions({ file }: { file: any }) {
                 >
                     <Download className="w-5 h-5" />
                 </button>
-                
+
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button
@@ -117,28 +155,44 @@ export default function FileActions({ file }: { file: any }) {
                             <MoreVertical className="w-5 h-5" />
                         </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={handleDownload}>
-                            <Download className="mr-2 h-4 w-4" />
-                            <span>Download</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleStar}>
-                            <Star className={`mr-2 h-4 w-4 ${starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
-                            <span>{starred ? "Unstar" : "Star"}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setIsRenaming(true)}>
-                            <Edit2 className="mr-2 h-4 w-4" />
-                            <span>Rename</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setIsDetailsOpen(true)}>
-                            <Info className="mr-2 h-4 w-4" />
-                            <span>Details</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600 dark:text-red-400">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Move to trash</span>
-                        </DropdownMenuItem>
+                    <DropdownMenuContent align="end" className="w-48 bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[130] shadow-2xl">
+                        {file.is_trashed ? (
+                            <>
+                                <DropdownMenuItem className="cursor-pointer" onClick={handleRestore}>
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    <span>Restore</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="opacity-20" />
+                                <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onClick={handleDelete}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Delete permanently</span>
+                                </DropdownMenuItem>
+                            </>
+                        ) : (
+                            <>
+                                <DropdownMenuItem onClick={handleDownload}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    <span>Download</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleStar}>
+                                    <Star className={`mr-2 h-4 w-4 ${starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
+                                    <span>{starred ? "Unstar" : "Star"}</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setIsRenaming(true)}>
+                                    <Edit2 className="mr-2 h-4 w-4" />
+                                    <span>Rename</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setIsDetailsOpen(true)}>
+                                    <Info className="mr-2 h-4 w-4" />
+                                    <span>Details</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="opacity-20" />
+                                <DropdownMenuItem className="text-red-600 dark:text-red-400 cursor-pointer" onClick={handleTrash}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Move to trash</span>
+                                </DropdownMenuItem>
+                            </>
+                        )}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>

@@ -58,20 +58,7 @@ export function Sidebar() {
                 })}
             </nav>
 
-            <div className="p-4 border-t border-neutral-200 dark:border-neutral-800">
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded-lg p-4 shadow-sm">
-                    <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-2 flex justify-between font-medium">
-                        <span>Storage</span>
-                        <span>75%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-black dark:bg-white rounded-full" style={{ width: '75%' }} />
-                    </div>
-                    <div className="text-xs text-neutral-400 dark:text-neutral-500 mt-2">
-                        15 GB of 20 GB used
-                    </div>
-                </div>
-            </div>
+
         </div>
     );
 }

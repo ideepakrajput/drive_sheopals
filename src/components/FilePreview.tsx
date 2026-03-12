@@ -1,13 +1,13 @@
 "use client";
 
-import { X, Download, MoreVertical, Star, Edit2, Info, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
+import { X, Download, MoreVertical, Star, Edit2, Info, ChevronLeft, ChevronRight, Maximize2, Trash2, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuSeparator, 
-    DropdownMenuTrigger 
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {
     Dialog,
@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { useRenameFile, useStarFile } from "@/hooks/use-files";
+import { useRenameFile, useStarFile, useTrashFile, useRestoreFile, useDeleteFile } from "@/hooks/use-files";
 import { apiClient } from "@/lib/api-client";
 
 interface FilePreviewProps {
@@ -34,7 +34,7 @@ interface FilePreviewProps {
 export default function FilePreview({ file: initialFile, allFiles, onClose }: FilePreviewProps) {
     const [currentIndex, setCurrentIndex] = useState(allFiles.findIndex(f => f.id === initialFile.id));
     const file = allFiles[currentIndex];
-    
+
     const [starred, setStarred] = useState(!!file.is_starred);
     const [isRenaming, setIsRenaming] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -73,10 +73,13 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [currentIndex]);
-    
+
     const { mutateAsync: renameFile, isPending: isRenamingLoading } = useRenameFile();
     const { mutateAsync: starFile } = useStarFile();
-    
+    const { mutateAsync: trashFile } = useTrashFile();
+    const { mutateAsync: restoreFile } = useRestoreFile();
+    const { mutateAsync: deleteFile } = useDeleteFile();
+
     // Disable scrolling when preview is open
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -87,8 +90,8 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
 
     const handleStar = async () => {
         const toggle = !starred;
-        setStarred(toggle); 
-        
+        setStarred(toggle);
+
         try {
             await starFile({ id: file.id, starred: toggle });
             router.refresh();
@@ -135,6 +138,44 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
         }
     };
 
+    const handleTrash = async () => {
+        const toastId = toast.loading("Moving to trash...");
+        try {
+            await trashFile(file.id);
+            toast.success("Moved to trash", { id: toastId });
+            onClose(); // Close preview since file is gone from current folder
+            router.refresh();
+        } catch (error: any) {
+            toast.error("Failed to move to trash", { id: toastId });
+        }
+    };
+
+    const handleRestore = async () => {
+        const toastId = toast.loading("Restoring file...");
+        try {
+            await restoreFile(file.id);
+            toast.success("File restored", { id: toastId });
+            onClose();
+            router.refresh();
+        } catch (error: any) {
+            toast.error("Failed to restore", { id: toastId });
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!confirm("Are you sure you want to delete this file permanently? This action cannot be undone.")) return;
+
+        const toastId = toast.loading("Deleting permanently...");
+        try {
+            await deleteFile(file.id);
+            toast.success("File deleted永久", { id: toastId });
+            onClose();
+            router.refresh();
+        } catch (error: any) {
+            toast.error("Failed to delete", { id: toastId });
+        }
+    };
+
     const isImage = file.mime_type?.includes('image/');
     const isPDF = file.mime_type?.includes('pdf');
 
@@ -143,7 +184,7 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
             {/* Top Bar */}
             <div className="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-6 bg-background/50 dark:bg-neutral-900/50 backdrop-blur-md border-b border-border/10">
                 <div className="flex items-center space-x-4 max-w-[60%]">
-                    <button 
+                    <button
                         onClick={onClose}
                         className="p-2 hover:bg-foreground/10 rounded-full transition-colors"
                     >
@@ -156,46 +197,66 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
                 </div>
 
                 <div className="flex items-center space-x-2">
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         className="hover:bg-foreground/10"
                         onClick={handleDownload}
                     >
                         <Download className="w-5 h-5" />
                     </Button>
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         className={`hover:bg-foreground/10 ${starred ? "text-yellow-500 fill-yellow-500" : ""}`}
                         onClick={handleStar}
                     >
                         <Star className="w-5 h-5" />
                     </Button>
-                    
+
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="hover:bg-foreground/10">
                                 <MoreVertical className="w-5 h-5" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent 
-                            align="end" 
+                        <DropdownMenuContent
+                            align="end"
                             className="w-48 bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[130] shadow-2xl"
                         >
-                            <DropdownMenuItem className="hover:bg-white/10 focus:bg-white/10 cursor-pointer" onClick={() => setIsRenaming(true)}>
-                                <Edit2 className="mr-2 h-4 w-4" />
-                                <span>Rename</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="hover:bg-white/10 focus:bg-white/10 cursor-pointer" onClick={() => setIsDetailsOpen(true)}>
-                                <Info className="mr-2 h-4 w-4" />
-                                <span>Details</span>
-                            </DropdownMenuItem>
-                             <DropdownMenuSeparator className="opacity-20" />
-                            <DropdownMenuItem className="hover:bg-white/10 focus:bg-white/10 cursor-pointer">
-                                <Maximize2 className="mr-2 h-4 w-4" />
-                                <span>Open in new window</span>
-                            </DropdownMenuItem>
+                            {file.is_trashed ? (
+                                <>
+                                    <DropdownMenuItem className="cursor-pointer" onClick={handleRestore}>
+                                        <ExternalLink className="mr-2 h-4 w-4" />
+                                        <span>Restore</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className="opacity-20" />
+                                    <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onClick={handleDelete}>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        <span>Delete permanently</span>
+                                    </DropdownMenuItem>
+                                </>
+                            ) : (
+                                <>
+                                    <DropdownMenuItem className="hover:bg-white/10 focus:bg-white/10 cursor-pointer" onClick={() => setIsRenaming(true)}>
+                                        <Edit2 className="mr-2 h-4 w-4" />
+                                        <span>Rename</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="hover:bg-white/10 focus:bg-white/10 cursor-pointer" onClick={() => setIsDetailsOpen(true)}>
+                                        <Info className="mr-2 h-4 w-4" />
+                                        <span>Details</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className="opacity-20" />
+                                    <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onClick={handleTrash}>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        <span>Move to trash</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="hover:bg-white/10 focus:bg-white/10 cursor-pointer">
+                                        <Maximize2 className="mr-2 h-4 w-4" />
+                                        <span>Open in new window</span>
+                                    </DropdownMenuItem>
+                                </>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
@@ -204,14 +265,14 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
             {/* Content Area */}
             <div className="flex-1 w-full flex items-center justify-center p-8 mt-16 pb-20 overflow-auto">
                 {isImage ? (
-                    <img 
-                        src={`/api/files/${file.id}/download?preview=1`} 
+                    <img
+                        src={`/api/files/${file.id}/download?preview=1`}
                         alt={file.original_name}
                         className="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-transform"
                     />
                 ) : isPDF ? (
-                    <iframe 
-                        src={`/api/files/${file.id}/download?preview=1#toolbar=0`} 
+                    <iframe
+                        src={`/api/files/${file.id}/download?preview=1#toolbar=0`}
                         className="w-full h-full max-w-4xl bg-white rounded-lg shadow-2xl"
                         title={file.original_name}
                     />
@@ -229,16 +290,16 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
                     </div>
                 )}
             </div>
-            
+
             {/* Navigation Arrows (Placeholder for multiple files) */}
             {/* Navigation Arrows */}
-            <button 
+            <button
                 onClick={handlePrev}
                 className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-foreground/5 hover:bg-foreground/10 rounded-full transition-all text-foreground/50 hover:text-foreground hidden lg:block group"
             >
                 <ChevronLeft className="w-8 h-8 group-hover:-translate-x-1 transition-transform" />
             </button>
-            <button 
+            <button
                 onClick={handleNext}
                 className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-foreground/5 hover:bg-foreground/10 rounded-full transition-all text-foreground/50 hover:text-foreground hidden lg:block group"
             >

@@ -29,6 +29,17 @@ export async function POST(request: NextRequest) {
         const userId = session.user.id;
         let targetFolderId = folderId;
 
+        if (targetFolderId) {
+            const [parentFolders]: any = await pool.query(
+                "SELECT id FROM folders WHERE id = ? AND owner_id = ? LIMIT 1",
+                [targetFolderId, userId]
+            );
+
+            if (parentFolders.length === 0) {
+                return NextResponse.json({ error: "Target folder not found or unauthorized" }, { status: 403 });
+            }
+        }
+
         if (relativePath && relativePath.includes("/")) {
             const parts = relativePath.split("/");
             const folderNames = parts.slice(0, -1);

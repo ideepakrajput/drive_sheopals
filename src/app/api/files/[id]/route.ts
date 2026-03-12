@@ -4,6 +4,7 @@ import { pool } from "@/lib/db";
 import fs from "fs/promises";
 import path from "path";
 import { getFolderPath } from "@/lib/server-utils";
+import { getFileAccess, removeResourceShares } from "@/lib/sharing";
 
 export async function DELETE(
     request: NextRequest,
@@ -17,6 +18,11 @@ export async function DELETE(
 
         const { id } = await params;
         const userId = session.user.id;
+        const access = await getFileAccess(id, userId);
+
+        if (!access.allowed || !access.isOwner) {
+            return NextResponse.json({ error: "File not found or unauthorized" }, { status: 404 });
+        }
 
         // 1. Fetch file details for physical deletion
         const [files]: any = await pool.query(
@@ -48,6 +54,7 @@ export async function DELETE(
             "DELETE FROM files WHERE id = ? AND owner_id = ?",
             [id, userId]
         );
+        await removeResourceShares("file", [id]);
 
         return NextResponse.json({ success: true });
     } catch (error: any) {
@@ -74,9 +81,14 @@ export async function PATCH(
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
         }
 
+        const access = await getFileAccess(id, userId);
+        if (!access.allowed || (!access.isOwner && access.permission !== "edit")) {
+            return NextResponse.json({ error: "File not found or unauthorized" }, { status: 404 });
+        }
+
         const [result]: any = await pool.query(
-            "UPDATE files SET original_name = ? WHERE id = ? AND owner_id = ?",
-            [name, id, userId]
+            "UPDATE files SET original_name = ? WHERE id = ?",
+            [name, id]
         );
 
         if (result.affectedRows === 0) {

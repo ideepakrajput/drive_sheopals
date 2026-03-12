@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { pool } from "@/lib/db";
+import { getDescendantFolderIds, getFolderAccess, removeResourceShares } from "@/lib/sharing";
 
 export async function PATCH(
     request: NextRequest,
@@ -20,9 +21,14 @@ export async function PATCH(
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
         }
 
+        const access = await getFolderAccess(id, userId);
+        if (!access.allowed || (!access.isOwner && access.permission !== "edit")) {
+            return NextResponse.json({ error: "Folder not found or unauthorized" }, { status: 404 });
+        }
+
         const [result]: any = await pool.query(
-            "UPDATE folders SET name = ? WHERE id = ? AND owner_id = ?",
-            [name, id, userId]
+            "UPDATE folders SET name = ? WHERE id = ?",
+            [name, id]
         );
 
         if (result.affectedRows === 0) {
@@ -48,6 +54,13 @@ export async function DELETE(
 
         const { id } = await params;
         const userId = session.user.id;
+        const access = await getFolderAccess(id, userId);
+
+        if (!access.allowed || !access.isOwner) {
+            return NextResponse.json({ error: "Folder not found or unauthorized" }, { status: 404 });
+        }
+
+        const descendantFolderIds = await getDescendantFolderIds(id);
 
         const [result]: any = await pool.query(
             "DELETE FROM folders WHERE id = ? AND owner_id = ?",
@@ -58,6 +71,7 @@ export async function DELETE(
             return NextResponse.json({ error: "Folder not found or unauthorized" }, { status: 404 });
         }
 
+        await removeResourceShares("folder", descendantFolderIds);
         return NextResponse.json({ success: true });
     } catch (error: any) {
         console.error("Delete folder error:", error);

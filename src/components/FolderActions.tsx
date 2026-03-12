@@ -1,10 +1,10 @@
 "use client";
 
-import { MoreVertical, Edit2, Trash2, Info, ExternalLink } from "lucide-react";
+import { MoreVertical, Edit2, Trash2, Info, ExternalLink, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useRenameFolder, useTrashFolder, useRestoreFolder, useDeleteFolder } from "@/hooks/use-files";
+import { useDeleteFolder, useListFolderShares, useRenameFolder, useRestoreFolder, useShareFolder, useTrashFolder, useUnshareFolder } from "@/hooks/use-files";
 import { 
     DropdownMenu, 
     DropdownMenuContent, 
@@ -23,17 +23,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import ShareDialog from "./ShareDialog";
 
 export default function FolderActions({ folder }: { folder: any }) {
     const [isRenaming, setIsRenaming] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const [isSharingOpen, setIsSharingOpen] = useState(false);
     const [newName, setNewName] = useState(folder.name);
     const router = useRouter();
+    const isOwner = folder.is_owner !== false;
+    const canEdit = isOwner || folder.access_level === "edit";
+    const canManageShares = isOwner;
 
     const { mutateAsync: renameFolder, isPending: isRenamingLoading } = useRenameFolder();
     const { mutateAsync: trashFolder } = useTrashFolder();
     const { mutateAsync: restoreFolder } = useRestoreFolder();
     const { mutateAsync: deleteFolder } = useDeleteFolder();
+    const { mutateAsync: listShares } = useListFolderShares();
+    const { mutateAsync: shareFolder } = useShareFolder();
+    const { mutateAsync: unshareFolder } = useUnshareFolder();
 
     const handleRename = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -101,34 +109,46 @@ export default function FolderActions({ folder }: { folder: any }) {
                         <MoreVertical className="w-5 h-5" />
                     </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[130] shadow-2xl">
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="w-48 bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[130] shadow-2xl">
                     {folder.is_trashed ? (
                         <>
-                            <DropdownMenuItem className="cursor-pointer" onClick={(e) => { e.stopPropagation(); handleRestore(); }}>
+                            <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); handleRestore(); }}>
                                 <ExternalLink className="mr-2 h-4 w-4" />
                                 <span>Restore</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator className="opacity-20" />
-                            <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleDelete(); }}>
+                            <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); handleDelete(); }}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 <span>Delete permanently</span>
                             </DropdownMenuItem>
                         </>
                     ) : (
                         <>
-                            <DropdownMenuItem className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }}>
-                                <Edit2 className="mr-2 h-4 w-4" />
-                                <span>Rename</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setIsDetailsOpen(true); }}>
+                            {canEdit && (
+                                <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }}>
+                                    <Edit2 className="mr-2 h-4 w-4" />
+                                    <span>Rename</span>
+                                </DropdownMenuItem>
+                            )}
+                            {canManageShares && (
+                                <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); setIsSharingOpen(true); }}>
+                                    <Share2 className="mr-2 h-4 w-4" />
+                                    <span>Share</span>
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); setIsDetailsOpen(true); }}>
                                 <Info className="mr-2 h-4 w-4" />
                                 <span>Details</span>
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator className="opacity-20" />
-                            <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleTrash(); }}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Move to trash</span>
-                            </DropdownMenuItem>
+                            {canEdit && (
+                                <>
+                                    <DropdownMenuSeparator className="opacity-20" />
+                                    <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); handleTrash(); }}>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        <span>Move to trash</span>
+                                    </DropdownMenuItem>
+                                </>
+                            )}
                         </>
                     )}
                 </DropdownMenuContent>
@@ -180,6 +200,8 @@ export default function FolderActions({ folder }: { folder: any }) {
                         {[
                             { label: "Name", value: folder.name },
                             { label: "Type", value: "Folder" },
+                            { label: "Owner", value: folder.owner_name || folder.owner_email || "You" },
+                            { label: "Access", value: isOwner ? "Owner" : (folder.access_level || "view") },
                             { label: "Created", value: new Date(folder.created_at).toLocaleString() },
                         ].map((item) => (
                             <div key={item.label} className="grid grid-cols-3 text-sm items-center">
@@ -193,6 +215,18 @@ export default function FolderActions({ folder }: { folder: any }) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {canManageShares && (
+                <ShareDialog
+                    open={isSharingOpen}
+                    onOpenChange={setIsSharingOpen}
+                    title={`Share "${folder.name}"`}
+                    description="Sharing a folder grants access to all nested folders and files."
+                    loadShares={async () => await listShares(folder.id) as { shares?: any[] }}
+                    createShare={async (payload) => await shareFolder({ id: folder.id, ...payload }) as { shares?: any[] }}
+                    removeShare={async ({ sharedWithUserId }) => await unshareFolder({ id: folder.id, sharedWithUserId }) as { shares?: any[] }}
+                />
+            )}
         </>
     );
 }

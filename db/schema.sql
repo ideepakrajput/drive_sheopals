@@ -48,3 +48,6 @@ CREATE TABLE IF NOT EXISTS shares (
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (shared_with_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE UNIQUE INDEX idx_unique_share
+ON shares (resource_type, resource_id, shared_with_user_id);

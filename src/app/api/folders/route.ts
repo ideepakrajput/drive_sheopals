@@ -25,6 +25,17 @@ export async function POST(request: NextRequest) {
         
         const finalParentId = parentFolderId === "null" || parentFolderId === "" ? null : parentFolderId;
 
+        if (finalParentId) {
+            const [parentFolders]: any = await pool.query(
+                "SELECT id FROM folders WHERE id = ? AND owner_id = ? LIMIT 1",
+                [finalParentId, userId]
+            );
+
+            if (parentFolders.length === 0) {
+                return NextResponse.json({ error: "Parent folder not found or unauthorized" }, { status: 403 });
+            }
+        }
+
         await pool.query(
             `INSERT INTO folders (id, name, parent_folder_id, owner_id) VALUES (?, ?, ?, ?)`,
             [folderId, name, finalParentId, userId]

@@ -53,15 +53,15 @@ export default async function DashboardPage() {
                                     const colorClass = colors[i % colors.length];
 
                                     return (
-                                        <Link href={`/dashboard/folders/${folder.id}`} key={folder.id} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 flex items-center justify-between hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors shadow-sm cursor-pointer group block">
-                                            <div className="flex items-center space-x-3 truncate">
+                                        <div key={folder.id} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 flex items-center justify-between hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors shadow-sm group">
+                                            <Link href={`/dashboard/folders/${folder.id}`} className="min-w-0 flex flex-1 items-center space-x-3 truncate">
                                                 <Folder className={`w-5 h-5 flex-shrink-0 ${colorClass}`} />
                                                 <span className="text-sm font-medium text-neutral-900 dark:text-neutral-200 truncate">{folder.name}</span>
-                                            </div>
-                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                            </Link>
+                                            <div className="ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <FolderActions folder={folder} />
                                             </div>
-                                        </Link>
+                                        </div>
                                     );
                                 })}
                             </div>

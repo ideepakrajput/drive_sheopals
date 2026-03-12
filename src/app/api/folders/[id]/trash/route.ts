@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { pool } from "@/lib/db";
+import { getFolderAccess } from "@/lib/sharing";
 
 export async function POST(
     request: NextRequest,
@@ -14,11 +15,16 @@ export async function POST(
 
         const { id } = await params;
         const userId = session.user.id;
+        const access = await getFolderAccess(id, userId);
+
+        if (!access.allowed || (!access.isOwner && access.permission !== "edit")) {
+            return NextResponse.json({ error: "Folder not found or unauthorized" }, { status: 404 });
+        }
 
         // Trash the folder
         const [result]: any = await pool.query(
-            "UPDATE folders SET is_trashed = 1 WHERE id = ? AND owner_id = ?",
-            [id, userId]
+            "UPDATE folders SET is_trashed = 1 WHERE id = ?",
+            [id]
         );
 
         if (result.affectedRows === 0) {

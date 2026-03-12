@@ -1,13 +1,12 @@
-import { Folder, MoreVertical, FileText, FileImage, File, ChevronRight, Home } from 'lucide-react';
+import { Folder, ChevronRight, Home } from 'lucide-react';
 import { getSession } from '@/lib/auth';
 import FileUploadButton from '@/components/FileUploadButton';
-import FileActions from '@/components/FileActions';
 import { pool } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getFolderPath } from '@/lib/server-utils';
 import FileTable from '@/components/FileTable';
 import FolderActions from '@/components/FolderActions';
+import { getFolderAccess } from '@/lib/sharing';
 
 export default async function FolderPage({ params }: { params: Promise<{ folderId: string }> }) {
     const session = await getSession();
@@ -18,43 +17,74 @@ export default async function FolderPage({ params }: { params: Promise<{ folderI
     const resolvedParams = await params;
     const folderId = resolvedParams.folderId;
     const userId = session.user.id;
+    const access = await getFolderAccess(folderId, userId);
+
+    if (!access.allowed) {
+        redirect('/dashboard/shared');
+    }
 
     // Fetch Target Folder to verify access and get name
     const [targetFolderArr]: any = await pool.query(
-        'SELECT * FROM folders WHERE id = ? AND owner_id = ? AND is_trashed = FALSE',
-        [folderId, userId]
+        `SELECT f.*, u.email AS owner_email, u.name AS owner_name
+         FROM folders f
+         INNER JOIN users u ON u.id = f.owner_id
+         WHERE f.id = ? AND f.is_trashed = FALSE`,
+        [folderId]
     );
 
     if (targetFolderArr.length === 0) {
         redirect('/dashboard');
     }
     const currentFolder = targetFolderArr[0];
+    const isOwner = currentFolder.owner_id === userId;
+    const accessLevel = isOwner ? 'edit' : access.permission;
 
     // Build breadcrumbs
     const breadcrumbs = [];
     let currentTrackerId = currentFolder.parent_folder_id;
     while(currentTrackerId) {
         const [parentArr]: any = await pool.query(
-            'SELECT id, name, parent_folder_id FROM folders WHERE id = ? AND owner_id = ?',
-            [currentTrackerId, userId]
+            'SELECT id, name, parent_folder_id FROM folders WHERE id = ?',
+            [currentTrackerId]
         );
         if (parentArr.length === 0) break;
         const p = parentArr[0];
+        const parentAccess = await getFolderAccess(p.id, userId);
+        if (!parentAccess.allowed) break;
         breadcrumbs.unshift({ id: p.id, name: p.name });
         currentTrackerId = p.parent_folder_id;
     }
 
     // Fetch Folders in this folder
     const [folders]: any = await pool.query(
-        'SELECT * FROM folders WHERE owner_id = ? AND parent_folder_id = ? AND is_trashed = FALSE ORDER BY name ASC',
-        [userId, folderId]
+        `SELECT f.*, u.email AS owner_email, u.name AS owner_name
+         FROM folders f
+         INNER JOIN users u ON u.id = f.owner_id
+         WHERE f.owner_id = ? AND f.parent_folder_id = ? AND f.is_trashed = FALSE
+         ORDER BY f.name ASC`,
+        [currentFolder.owner_id, folderId]
     );
 
     // Fetch Files in this folder
     const [files]: any = await pool.query(
-        'SELECT * FROM files WHERE owner_id = ? AND folder_id = ? AND is_trashed = FALSE ORDER BY created_at DESC',
-        [userId, folderId]
+        `SELECT f.*, u.email AS owner_email, u.name AS owner_name
+         FROM files f
+         INNER JOIN users u ON u.id = f.owner_id
+         WHERE f.owner_id = ? AND f.folder_id = ? AND f.is_trashed = FALSE
+         ORDER BY f.created_at DESC`,
+        [currentFolder.owner_id, folderId]
     );
+
+    const visibleFolders = folders.map((folder: any) => ({
+        ...folder,
+        is_owner: isOwner,
+        access_level: accessLevel,
+    }));
+    const visibleFiles = files.map((file: any) => ({
+        ...file,
+        is_owner: isOwner,
+        access_level: accessLevel,
+    }));
 
     return (
         <div className="p-8">
@@ -76,10 +106,16 @@ export default async function FolderPage({ params }: { params: Promise<{ folderI
                         {currentFolder.name}
                     </span>
                 </div>
-                <FileUploadButton folderId={folderId} />
+                {isOwner ? <FileUploadButton folderId={folderId} /> : null}
             </div>
 
-            {folders.length === 0 && files.length === 0 ? (
+            {!isOwner && (
+                <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
+                    Shared by {currentFolder.owner_name || currentFolder.owner_email} with {accessLevel} access.
+                </div>
+            )}
+
+            {visibleFolders.length === 0 && visibleFiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-neutral-500">
                     <Folder className="w-16 h-16 mb-4 text-neutral-300 dark:text-neutral-700" />
                     <h2 className="text-lg text-neutral-900 dark:text-neutral-400 font-medium">This folder is empty</h2>
@@ -87,34 +123,39 @@ export default async function FolderPage({ params }: { params: Promise<{ folderI
                 </div>
             ) : (
                 <>
-                    {folders.length > 0 && (
+                    {visibleFolders.length > 0 && (
                         <div className="mb-8">
                             <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-4">Folders</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {folders.map((folder: any, i: number) => {
+                                {visibleFolders.map((folder: any, i: number) => {
                                     const colors = ['text-blue-500 fill-blue-500/20', 'text-amber-500 fill-amber-500/20', 'text-emerald-500 fill-emerald-500/20', 'text-purple-500 fill-purple-500/20', 'text-rose-500 fill-rose-500/20'];
                                     const colorClass = colors[i % colors.length];
 
                                     return (
-                                        <Link href={`/dashboard/folders/${folder.id}`} key={folder.id} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 flex items-center justify-between hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors shadow-sm cursor-pointer group block">
-                                            <div className="flex items-center space-x-3 truncate">
+                                        <div key={folder.id} className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 flex items-center justify-between hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors shadow-sm group">
+                                            <Link href={`/dashboard/folders/${folder.id}`} className="min-w-0 flex flex-1 items-center space-x-3 truncate">
                                                 <Folder className={`w-5 h-5 flex-shrink-0 ${colorClass}`} />
-                                                <span className="text-sm font-medium text-neutral-900 dark:text-neutral-200 truncate">{folder.name}</span>
-                                            </div>
-                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-medium text-neutral-900 dark:text-neutral-200 truncate">{folder.name}</div>
+                                                    {!folder.is_owner && (
+                                                        <div className="truncate text-xs text-neutral-500 dark:text-neutral-400">{folder.access_level} access</div>
+                                                    )}
+                                                </div>
+                                            </Link>
+                                            <div className="ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <FolderActions folder={folder} />
                                             </div>
-                                        </Link>
+                                        </div>
                                     );
                                 })}
                             </div>
                         </div>
                     )}
 
-                    {files.length > 0 && (
+                    {visibleFiles.length > 0 && (
                         <div>
                             <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-4">Files</h2>
-                            <FileTable files={files} />
+                            <FileTable files={visibleFiles} />
                         </div>
                     )}
                 </>

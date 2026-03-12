@@ -5,6 +5,16 @@ import { FileText, FileImage, File } from 'lucide-react';
 import FileActions from './FileActions';
 import FilePreview from './FilePreview';
 
+function formatDate(value: string) {
+    const date = new Date(value);
+    return new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        timeZone: "UTC",
+    }).format(date);
+}
+
 export default function FileTable({ files }: { files: any[] }) {
     const [previewFile, setPreviewFile] = useState<any | null>(null);
 
@@ -50,7 +60,7 @@ export default function FileTable({ files }: { files: any[] }) {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
                                         <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                            {new Date(file.updated_at).toLocaleDateString()}
+                                            {formatDate(file.updated_at)}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400 hidden sm:table-cell">

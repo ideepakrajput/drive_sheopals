@@ -1,11 +1,10 @@
 "use client";
 
-import { Download, MoreVertical, Star, Edit2, Info, Trash2, ExternalLink } from "lucide-react";
+import { Download, MoreVertical, Star, Edit2, Info, Trash2, ExternalLink, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useRenameFile, useStarFile, useTrashFile, useRestoreFile, useDeleteFile } from "@/hooks/use-files";
-import { apiClient } from "@/lib/api-client";
+import { useDeleteFile, useListFileShares, useRenameFile, useRestoreFile, useShareFile, useStarFile, useTrashFile, useUnshareFile } from "@/hooks/use-files";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -24,20 +23,28 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import ShareDialog from "./ShareDialog";
 
 export default function FileActions({ file }: { file: any }) {
     const [isDownloading, setIsDownloading] = useState(false);
     const [isRenaming, setIsRenaming] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const [isSharingOpen, setIsSharingOpen] = useState(false);
     const [newName, setNewName] = useState(file.original_name);
     const [starred, setStarred] = useState(!!file.is_starred);
     const router = useRouter();
+    const isOwner = file.is_owner !== false;
+    const canEdit = isOwner || file.access_level === "edit";
+    const canManageShares = isOwner;
 
     const { mutateAsync: renameFile, isPending: isRenamingLoading } = useRenameFile();
     const { mutateAsync: starFile } = useStarFile();
     const { mutateAsync: trashFile } = useTrashFile();
     const { mutateAsync: restoreFile } = useRestoreFile();
     const { mutateAsync: deleteFile } = useDeleteFile();
+    const { mutateAsync: listShares } = useListFileShares();
+    const { mutateAsync: shareFile } = useShareFile();
+    const { mutateAsync: unshareFile } = useUnshareFile();
 
     const handleDownload = async () => {
         setIsDownloading(true);
@@ -86,6 +93,8 @@ export default function FileActions({ file }: { file: any }) {
     };
 
     const handleStar = async () => {
+        if (!isOwner) return;
+
         const toggle = !starred;
         setStarred(toggle); // Optimistic UI
 
@@ -138,7 +147,10 @@ export default function FileActions({ file }: { file: any }) {
         <>
             <div className="flex items-center justify-end space-x-2">
                 <button
-                    onClick={handleDownload}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload();
+                    }}
                     disabled={isDownloading}
                     className="p-1 opacity-0 group-hover:opacity-100 text-neutral-400 dark:text-neutral-500 hover:text-black dark:hover:text-white transition-all disabled:opacity-50"
                     title="Download"
@@ -149,48 +161,67 @@ export default function FileActions({ file }: { file: any }) {
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button
+                            onClick={(e) => e.stopPropagation()}
                             className="p-1 text-neutral-400 dark:text-neutral-500 hover:text-black dark:hover:text-white transition-colors"
                             title="Options"
                         >
                             <MoreVertical className="w-5 h-5" />
                         </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[130] shadow-2xl">
+                    <DropdownMenuContent
+                        align="end"
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-48 bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[130] shadow-2xl"
+                    >
                         {file.is_trashed ? (
                             <>
-                                <DropdownMenuItem className="cursor-pointer" onClick={handleRestore}>
+                                <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={handleRestore}>
                                     <ExternalLink className="mr-2 h-4 w-4" />
                                     <span>Restore</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator className="opacity-20" />
-                                <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onClick={handleDelete}>
+                                <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={handleDelete}>
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     <span>Delete permanently</span>
                                 </DropdownMenuItem>
                             </>
                         ) : (
                             <>
-                                <DropdownMenuItem onClick={handleDownload}>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={handleDownload}>
                                     <Download className="mr-2 h-4 w-4" />
                                     <span>Download</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleStar}>
-                                    <Star className={`mr-2 h-4 w-4 ${starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
-                                    <span>{starred ? "Unstar" : "Star"}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setIsRenaming(true)}>
-                                    <Edit2 className="mr-2 h-4 w-4" />
-                                    <span>Rename</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setIsDetailsOpen(true)}>
+                                {isOwner && (
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={handleStar}>
+                                        <Star className={`mr-2 h-4 w-4 ${starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
+                                        <span>{starred ? "Unstar" : "Star"}</span>
+                                    </DropdownMenuItem>
+                                )}
+                                {canEdit && (
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={() => setIsRenaming(true)}>
+                                        <Edit2 className="mr-2 h-4 w-4" />
+                                        <span>Rename</span>
+                                    </DropdownMenuItem>
+                                )}
+                                {canManageShares && (
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={() => setIsSharingOpen(true)}>
+                                        <Share2 className="mr-2 h-4 w-4" />
+                                        <span>Share</span>
+                                    </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={() => setIsDetailsOpen(true)}>
                                     <Info className="mr-2 h-4 w-4" />
                                     <span>Details</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator className="opacity-20" />
-                                <DropdownMenuItem className="text-red-600 dark:text-red-400 cursor-pointer" onClick={handleTrash}>
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Move to trash</span>
-                                </DropdownMenuItem>
+                                {canEdit && (
+                                    <>
+                                        <DropdownMenuSeparator className="opacity-20" />
+                                        <DropdownMenuItem className="text-red-600 dark:text-red-400 cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={handleTrash}>
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            <span>Move to trash</span>
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
                             </>
                         )}
                     </DropdownMenuContent>
@@ -244,6 +275,8 @@ export default function FileActions({ file }: { file: any }) {
                             { label: "Name", value: file.original_name },
                             { label: "Type", value: file.mime_type },
                             { label: "Size", value: `${(file.size / 1024 / 1024).toFixed(2)} MB` },
+                            { label: "Owner", value: file.owner_name || file.owner_email || "You" },
+                            { label: "Access", value: isOwner ? "Owner" : (file.access_level || "view") },
                             { label: "Created", value: new Date(file.created_at).toLocaleString() },
                             { label: "Modified", value: new Date(file.updated_at).toLocaleString() },
                         ].map((item) => (
@@ -258,6 +291,18 @@ export default function FileActions({ file }: { file: any }) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {canManageShares && (
+                <ShareDialog
+                    open={isSharingOpen}
+                    onOpenChange={setIsSharingOpen}
+                    title={`Share "${file.original_name}"`}
+                    description="Invite another registered user by email."
+                    loadShares={async () => await listShares(file.id) as { shares?: any[] }}
+                    createShare={async (payload) => await shareFile({ id: file.id, ...payload }) as { shares?: any[] }}
+                    removeShare={async ({ sharedWithUserId }) => await unshareFile({ id: file.id, sharedWithUserId }) as { shares?: any[] }}
+                />
+            )}
         </>
     );
 }

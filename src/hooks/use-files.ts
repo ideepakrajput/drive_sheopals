@@ -98,3 +98,51 @@ export const useDeleteFolder = () => {
         }
     });
 };
+
+export const useListFileShares = () => {
+    return useMutation({
+        mutationFn: async (id: string) => {
+            return await apiClient.get(`/files/${id}/share`);
+        }
+    });
+};
+
+export const useShareFile = () => {
+    return useMutation({
+        mutationFn: async ({ id, email, permission }: { id: string; email: string; permission: 'view' | 'edit' }) => {
+            return await apiClient.post(`/files/${id}/share`, { email, permission });
+        }
+    });
+};
+
+export const useUnshareFile = () => {
+    return useMutation({
+        mutationFn: async ({ id, sharedWithUserId }: { id: string; sharedWithUserId: string }) => {
+            return await apiClient.delete(`/files/${id}/share`, { data: { sharedWithUserId } });
+        }
+    });
+};
+
+export const useListFolderShares = () => {
+    return useMutation({
+        mutationFn: async (id: string) => {
+            return await apiClient.get(`/folders/${id}/share`);
+        }
+    });
+};
+
+export const useShareFolder = () => {
+    return useMutation({
+        mutationFn: async ({ id, email, permission }: { id: string; email: string; permission: 'view' | 'edit' }) => {
+            return await apiClient.post(`/folders/${id}/share`, { email, permission });
+        }
+    });
+};
+
+export const useUnshareFolder = () => {
+    return useMutation({
+        mutationFn: async ({ id, sharedWithUserId }: { id: string; sharedWithUserId: string }) => {
+            return await apiClient.delete(`/folders/${id}/share`, { data: { sharedWithUserId } });
+        }
+    });
+};

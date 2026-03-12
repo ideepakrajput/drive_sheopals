@@ -4,6 +4,7 @@ import { pool } from "@/lib/db";
 import fs from "fs";
 import path from "path";
 import { getFolderPath } from "@/lib/server-utils";
+import { getFileAccess } from "@/lib/sharing";
 
 // Helper to wrap Node.js stream into Web ReadableStream
 function streamFile(filepath: string): ReadableStream<Uint8Array> {
@@ -46,22 +47,8 @@ export async function GET(
 
         const file = files[0];
 
-        // Authorization check: User must be owner or have shared access
-        // Quick check for owner
-        let hasAccess = file.owner_id === userId;
-
-        if (!hasAccess) {
-            // Check if shared
-            const [shares]: any = await pool.query(
-                "SELECT * FROM shares WHERE resource_id = ? AND shared_with_user_id = ?",
-                [fileId, userId]
-            );
-            if (shares.length > 0) {
-                hasAccess = true;
-            }
-        }
-
-        if (!hasAccess) {
+        const access = await getFileAccess(fileId, userId);
+        if (!access.allowed) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

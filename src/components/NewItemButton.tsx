@@ -74,21 +74,11 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
+        let uploadedCount = 0;
+
         for(let i = 0; i < files.length; i++) {
            const file = files[i];
-           let relativePath = file.webkitRelativePath || "";
-           
-           // If it's a folder upload, handle user request:
-           // 1. Don't upload files in the root folder of the selection (only subfolders)
-           // 2. Keep the root folder structure (so "App Designs" folder is created)
-           if (relativePath && relativePath.includes('/')) {
-               const parts = relativePath.split('/');
-               if (parts.length <= 2) {
-                   // This is a file in the root of the uploaded folder, skip it
-                   // as per user request: "don't want to upload in first folder"
-                   continue;
-               }
-           }
+           const relativePath = file.webkitRelativePath || "";
 
            const displayName = file.name.includes('/') ? file.name.split('/').pop() || file.name : file.name;
            
@@ -96,6 +86,7 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
            
            try {
                await uploadFileAsync({ file, folderId, relativePath });
+               uploadedCount += 1;
                toast.success(`${displayName} uploaded`, { id: toastId });
            } catch(error: any) {
                toast.error(error.message || `Failed to upload ${displayName}`, { id: toastId });
@@ -104,6 +95,9 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
         
         if (fileInputRef.current) fileInputRef.current.value = "";
         if (folderInputRef.current) folderInputRef.current.value = "";
+        if (uploadedCount === 0) {
+            toast.error("No files were uploaded from the selected folder");
+        }
         router.refresh();
     };
 

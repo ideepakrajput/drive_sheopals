@@ -175,48 +175,48 @@ export default function FileActions({ file }: { file: any }) {
                     >
                         {file.is_trashed ? (
                             <>
-                                <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={handleRestore}>
+                                <DropdownMenuItem className="cursor-pointer" onSelect={handleRestore}>
                                     <ExternalLink className="mr-2 h-4 w-4" />
                                     <span>Restore</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator className="opacity-20" />
-                                <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={handleDelete}>
+                                <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onSelect={handleDelete}>
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     <span>Delete permanently</span>
                                 </DropdownMenuItem>
                             </>
                         ) : (
                             <>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={handleDownload}>
+                                <DropdownMenuItem onSelect={handleDownload}>
                                     <Download className="mr-2 h-4 w-4" />
                                     <span>Download</span>
                                 </DropdownMenuItem>
                                 {isOwner && (
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={handleStar}>
+                                    <DropdownMenuItem onSelect={handleStar}>
                                         <Star className={`mr-2 h-4 w-4 ${starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
                                         <span>{starred ? "Unstar" : "Star"}</span>
                                     </DropdownMenuItem>
                                 )}
                                 {canEdit && (
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={() => setIsRenaming(true)}>
+                                    <DropdownMenuItem onSelect={() => setIsRenaming(true)}>
                                         <Edit2 className="mr-2 h-4 w-4" />
                                         <span>Rename</span>
                                     </DropdownMenuItem>
                                 )}
                                 {canManageShares && (
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={() => setIsSharingOpen(true)}>
+                                    <DropdownMenuItem onSelect={() => setIsSharingOpen(true)}>
                                         <Share2 className="mr-2 h-4 w-4" />
                                         <span>Share</span>
                                     </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} onClick={() => setIsDetailsOpen(true)}>
+                                <DropdownMenuItem onSelect={() => setIsDetailsOpen(true)}>
                                     <Info className="mr-2 h-4 w-4" />
                                     <span>Details</span>
                                 </DropdownMenuItem>
                                 {canEdit && (
                                     <>
                                         <DropdownMenuSeparator className="opacity-20" />
-                                        <DropdownMenuItem className="text-red-600 dark:text-red-400 cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={handleTrash}>
+                                        <DropdownMenuItem className="text-red-600 dark:text-red-400 cursor-pointer" onSelect={handleTrash}>
                                             <Trash2 className="mr-2 h-4 w-4" />
                                             <span>Move to trash</span>
                                         </DropdownMenuItem>
@@ -230,7 +230,7 @@ export default function FileActions({ file }: { file: any }) {
 
             {/* Rename Dialog */}
             <Dialog open={isRenaming} onOpenChange={setIsRenaming}>
-                <DialogContent className="sm:max-w-[425px] bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[120] shadow-2xl">
+                <DialogContent className="sm:max-w-[425px] bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[140] shadow-2xl">
                     <form onSubmit={handleRename}>
                         <DialogHeader>
                             <DialogTitle className="text-xl font-semibold">Rename File</DialogTitle>
@@ -266,7 +266,7 @@ export default function FileActions({ file }: { file: any }) {
 
             {/* Details Dialog */}
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                <DialogContent className="bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[120] shadow-2xl">
+                <DialogContent className="bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[140] shadow-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-semibold">File Details</DialogTitle>
                     </DialogHeader>

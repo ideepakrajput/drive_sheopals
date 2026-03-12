@@ -119,7 +119,7 @@ export default function ShareDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent onClick={(e) => e.stopPropagation()} className="bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[120] shadow-2xl">
+            <DialogContent onClick={(e) => e.stopPropagation()} className="bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[140] shadow-2xl">
                 <DialogHeader>
                     <DialogTitle className="text-xl font-semibold">{title}</DialogTitle>
                     <DialogDescription className="text-muted-foreground">

@@ -112,12 +112,12 @@ export default function FolderActions({ folder }: { folder: any }) {
                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="w-48 bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[130] shadow-2xl">
                     {folder.is_trashed ? (
                         <>
-                            <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); handleRestore(); }}>
+                            <DropdownMenuItem className="cursor-pointer" onSelect={handleRestore}>
                                 <ExternalLink className="mr-2 h-4 w-4" />
                                 <span>Restore</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator className="opacity-20" />
-                            <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); handleDelete(); }}>
+                            <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onSelect={handleDelete}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 <span>Delete permanently</span>
                             </DropdownMenuItem>
@@ -125,25 +125,25 @@ export default function FolderActions({ folder }: { folder: any }) {
                     ) : (
                         <>
                             {canEdit && (
-                                <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }}>
+                                <DropdownMenuItem className="cursor-pointer" onSelect={() => setIsRenaming(true)}>
                                     <Edit2 className="mr-2 h-4 w-4" />
                                     <span>Rename</span>
                                 </DropdownMenuItem>
                             )}
                             {canManageShares && (
-                                <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); setIsSharingOpen(true); }}>
+                                <DropdownMenuItem className="cursor-pointer" onSelect={() => setIsSharingOpen(true)}>
                                     <Share2 className="mr-2 h-4 w-4" />
                                     <span>Share</span>
                                 </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem className="cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); setIsDetailsOpen(true); }}>
+                            <DropdownMenuItem className="cursor-pointer" onSelect={() => setIsDetailsOpen(true)}>
                                 <Info className="mr-2 h-4 w-4" />
                                 <span>Details</span>
                             </DropdownMenuItem>
                             {canEdit && (
                                 <>
                                     <DropdownMenuSeparator className="opacity-20" />
-                                    <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onSelect={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); handleTrash(); }}>
+                                    <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onSelect={handleTrash}>
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         <span>Move to trash</span>
                                     </DropdownMenuItem>
@@ -156,7 +156,7 @@ export default function FolderActions({ folder }: { folder: any }) {
 
             {/* Rename Dialog */}
             <Dialog open={isRenaming} onOpenChange={setIsRenaming}>
-                <DialogContent className="sm:max-w-[425px] bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[120] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <DialogContent className="sm:max-w-[425px] bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[140] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                     <form onSubmit={handleRename}>
                         <DialogHeader>
                             <DialogTitle className="text-xl font-semibold">Rename Folder</DialogTitle>
@@ -192,7 +192,7 @@ export default function FolderActions({ folder }: { folder: any }) {
 
             {/* Details Dialog */}
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                <DialogContent className="bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[120] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <DialogContent className="bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[140] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                     <DialogHeader>
                         <DialogTitle className="text-xl font-semibold">Folder Details</DialogTitle>
                     </DialogHeader>

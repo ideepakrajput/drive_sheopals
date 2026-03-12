@@ -208,10 +208,17 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
                     <Button
                         variant="ghost"
                         size="icon"
-                        className={`hover:bg-foreground/10 ${starred ? "text-yellow-500 fill-yellow-500" : ""}`}
+                        className="hover:bg-foreground/10 transition-all duration-200"
                         onClick={handleStar}
+                        title={starred ? "Remove from starred" : "Add to starred"}
                     >
-                        <Star className="w-5 h-5" />
+                        <Star 
+                            className={`w-5 h-5 transition-all duration-200 ${
+                                starred 
+                                    ? "text-yellow-500 fill-yellow-500" 
+                                    : "text-muted-foreground hover:text-yellow-500 hover:fill-yellow-500/30"
+                            }`} 
+                        />
                     </Button>
 
                     <DropdownMenu>
@@ -308,7 +315,7 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
 
             {/* Rename Dialog */}
             <Dialog open={isRenaming} onOpenChange={setIsRenaming}>
-                <DialogContent className="sm:max-w-[425px] bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[120] shadow-2xl">
+                <DialogContent className="sm:max-w-[425px] bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[140] shadow-2xl">
                     <form onSubmit={handleRename}>
                         <DialogHeader>
                             <DialogTitle className="text-xl font-semibold">Rename File</DialogTitle>
@@ -344,7 +351,7 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
 
             {/* Details Dialog */}
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                <DialogContent className="bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[120] shadow-2xl">
+                <DialogContent className="bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[140] shadow-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-semibold">File Details</DialogTitle>
                     </DialogHeader>

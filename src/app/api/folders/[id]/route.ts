@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import path from "path";
 import { getDescendantFolderIds, getFolderAccess, removeResourceShares } from "@/lib/sharing";
 import { ensureFolderExists, getFolderPhysicalPath, getUserDrivePath, pathExists } from "@/lib/server-utils";
+import { adjustStorageUsage } from "@/lib/storage";
 
 export async function PATCH(
     request: NextRequest,
@@ -89,6 +90,16 @@ export async function DELETE(
         }
 
         const descendantFolderIds = await getDescendantFolderIds(id);
+        const allFolderIds = [id, ...descendantFolderIds];
+        const placeholders = allFolderIds.map(() => "?").join(", ");
+        const [sizeRows]: any = await pool.query(
+            `SELECT COALESCE(SUM(size), 0) AS totalSize
+             FROM files
+             WHERE folder_id IN (${placeholders})`,
+            allFolderIds
+        );
+        const totalSize = Number(sizeRows[0]?.totalSize || 0);
+        const physicalPath = await getFolderPhysicalPath(userId, id);
 
         const [result]: any = await pool.query(
             "DELETE FROM folders WHERE id = ? AND owner_id = ?",
@@ -99,7 +110,9 @@ export async function DELETE(
             return NextResponse.json({ error: "Folder not found or unauthorized" }, { status: 404 });
         }
 
-        await removeResourceShares("folder", descendantFolderIds);
+        await removeResourceShares("folder", allFolderIds);
+        await adjustStorageUsage(userId, -totalSize);
+        await fs.rm(physicalPath, { recursive: true, force: true }).catch(() => undefined);
         return NextResponse.json({ success: true });
     } catch (error: any) {
         console.error("Delete folder error:", error);

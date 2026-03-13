@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { getFileAccess } from "@/lib/sharing";
 import { ensureFolderExists, getFilePhysicalPath, getFolderPhysicalPath } from "@/lib/server-utils";
+import { adjustStorageUsage, ensureStorageAvailable } from "@/lib/storage";
 
 export async function POST(
     request: NextRequest,
@@ -50,6 +51,7 @@ export async function POST(
         }
 
         const file = files[0];
+        await ensureStorageAvailable(userId, Number(file.size || 0));
         const newFileId = crypto.randomUUID();
         const newStoredName = crypto.randomUUID();
         const sourcePath = await getFilePhysicalPath(userId, file.folder_id, file.stored_name);
@@ -59,11 +61,17 @@ export async function POST(
 
         await fs.copyFile(sourcePath, destinationPath);
 
-        await pool.query(
-            `INSERT INTO files (id, original_name, stored_name, folder_id, owner_id, size, mime_type, is_starred, is_trashed)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, FALSE)`,
-            [newFileId, file.original_name, newStoredName, destinationFolderId || null, userId, file.size, file.mime_type, file.is_starred ? 1 : 0]
-        );
+        try {
+            await pool.query(
+                `INSERT INTO files (id, original_name, stored_name, folder_id, owner_id, size, mime_type, is_starred, is_trashed)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, FALSE)`,
+                [newFileId, file.original_name, newStoredName, destinationFolderId || null, userId, file.size, file.mime_type, file.is_starred ? 1 : 0]
+            );
+            await adjustStorageUsage(userId, Number(file.size || 0));
+        } catch (error) {
+            await fs.unlink(destinationPath).catch(() => undefined);
+            throw error;
+        }
 
         return NextResponse.json({ success: true, fileId: newFileId });
     } catch (error) {

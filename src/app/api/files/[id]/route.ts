@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import path from "path";
 import { getFolderPath } from "@/lib/server-utils";
 import { getFileAccess, removeResourceShares } from "@/lib/sharing";
+import { adjustStorageUsage } from "@/lib/storage";
 
 export async function DELETE(
     request: NextRequest,
@@ -26,7 +27,7 @@ export async function DELETE(
 
         // 1. Fetch file details for physical deletion
         const [files]: any = await pool.query(
-            "SELECT stored_name, folder_id FROM files WHERE id = ? AND owner_id = ?",
+            "SELECT stored_name, folder_id, size FROM files WHERE id = ? AND owner_id = ?",
             [id, userId]
         );
 
@@ -55,6 +56,7 @@ export async function DELETE(
             [id, userId]
         );
         await removeResourceShares("file", [id]);
+        await adjustStorageUsage(userId, -Number(file.size || 0));
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

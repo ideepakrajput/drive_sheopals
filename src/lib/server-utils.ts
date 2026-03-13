@@ -85,6 +85,24 @@ export async function getFolderDescendants(folderId: string) {
     return descendants;
 }
 
+export async function getFolderTreeIds(folderId: string) {
+    const descendants = await getFolderDescendants(folderId);
+    return [folderId, ...descendants.map((folder) => folder.id)];
+}
+
+export async function getFolderTreeFileSize(folderId: string) {
+    const folderIds = await getFolderTreeIds(folderId);
+    const placeholders = folderIds.map(() => "?").join(", ");
+    const [rows]: any = await pool.query(
+        `SELECT COALESCE(SUM(size), 0) AS totalSize
+         FROM files
+         WHERE folder_id IN (${placeholders})`,
+        folderIds
+    );
+
+    return Number(rows[0]?.totalSize || 0);
+}
+
 export async function duplicateFolderTree(sourceFolderId: string, destinationParentId: string | null, ownerId: string) {
     const folderIdMap = new Map<string, string>();
 

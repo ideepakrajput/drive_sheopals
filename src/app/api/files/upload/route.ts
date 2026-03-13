@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 import { getFolderPath } from "@/lib/server-utils";
+import { adjustStorageUsage, ensureStorageAvailable } from "@/lib/storage";
 
 export async function POST(request: NextRequest) {
     try {
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
 
         const mimeType = file.type;
         const size = file.size;
+        await ensureStorageAvailable(userId, size);
         const storedName = crypto.randomUUID();
         const fileId = crypto.randomUUID();
 
@@ -96,12 +98,17 @@ export async function POST(request: NextRequest) {
         
         await fs.writeFile(filePath, buffer);
 
-        // Insert into database
-        await pool.query(
-            `INSERT INTO files (id, original_name, stored_name, folder_id, owner_id, size, mime_type)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [fileId, originalName, storedName, targetFolderId, userId, size, mimeType]
-        );
+        try {
+            await pool.query(
+                `INSERT INTO files (id, original_name, stored_name, folder_id, owner_id, size, mime_type)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [fileId, originalName, storedName, targetFolderId, userId, size, mimeType]
+            );
+            await adjustStorageUsage(userId, size);
+        } catch (error) {
+            await fs.unlink(filePath).catch(() => undefined);
+            throw error;
+        }
 
         return NextResponse.json({ success: true, fileId });
     } catch (error: any) {

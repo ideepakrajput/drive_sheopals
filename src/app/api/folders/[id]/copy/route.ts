@@ -4,7 +4,8 @@ import path from "path";
 import { getSession } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { getFolderAccess } from "@/lib/sharing";
-import { duplicateFolderTree, ensureFolderExists, getFolderPhysicalPath, pathExists } from "@/lib/server-utils";
+import { duplicateFolderTree, ensureFolderExists, getFolderPhysicalPath, getFolderTreeFileSize, pathExists } from "@/lib/server-utils";
+import { adjustStorageUsage, ensureStorageAvailable } from "@/lib/storage";
 
 export async function POST(
     request: NextRequest,
@@ -37,6 +38,9 @@ export async function POST(
             return NextResponse.json({ error: "Folder not found" }, { status: 404 });
         }
 
+        const totalSize = await getFolderTreeFileSize(id);
+        await ensureStorageAvailable(userId, totalSize);
+
         if (destinationFolderId) {
             const [destinationFolders]: any = await pool.query(
                 "SELECT id FROM folders WHERE id = ? AND owner_id = ? AND is_trashed = FALSE LIMIT 1",
@@ -58,9 +62,16 @@ export async function POST(
         }
 
         await fs.cp(sourcePath, destinationPath, { recursive: true });
-        const { rootCopyId } = await duplicateFolderTree(id, destinationFolderId || null, userId);
 
-        return NextResponse.json({ success: true, folderId: rootCopyId });
+        try {
+            const { rootCopyId } = await duplicateFolderTree(id, destinationFolderId || null, userId);
+            await adjustStorageUsage(userId, totalSize);
+
+            return NextResponse.json({ success: true, folderId: rootCopyId });
+        } catch (error) {
+            await fs.rm(destinationPath, { recursive: true, force: true }).catch(() => undefined);
+            throw error;
+        }
     } catch (error) {
         console.error("Copy folder error:", error);
         return NextResponse.json({ error: "Failed to copy folder" }, { status: 500 });

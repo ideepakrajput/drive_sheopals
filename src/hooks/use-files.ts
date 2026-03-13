@@ -1,6 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
+const invalidateDriveQueries = (queryClient: ReturnType<typeof useQueryClient>) => {
+    queryClient.invalidateQueries({ queryKey: ['my-storage'] });
+    queryClient.invalidateQueries({ queryKey: ['users-storage'] });
+};
+
 export const useUploadFile = () => {
     const queryClient = useQueryClient();
 
@@ -22,8 +27,7 @@ export const useUploadFile = () => {
             });
         },
         onSuccess: () => {
-             // We can invalidate specific queries here if we implement query hooks for files later
-             // queryClient.invalidateQueries({ queryKey: ['files'] });
+            invalidateDriveQueries(queryClient);
         }
     });
 };
@@ -76,10 +80,15 @@ export const useRestoreFile = () => {
 };
 
 export const useDeleteFile = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: async (id: string) => {
             return await apiClient.delete(`/files/${id}`);
-        }
+        },
+        onSuccess: () => {
+            invalidateDriveQueries(queryClient);
+        },
     });
 };
 
@@ -92,10 +101,15 @@ export const useRestoreFolder = () => {
 };
 
 export const useDeleteFolder = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: async (id: string) => {
             return await apiClient.delete(`/folders/${id}`);
-        }
+        },
+        onSuccess: () => {
+            invalidateDriveQueries(queryClient);
+        },
     });
 };
 
@@ -116,10 +130,15 @@ export const useMoveFile = () => {
 };
 
 export const useCopyFile = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: async ({ id, destinationFolderId }: { id: string; destinationFolderId: string | null }) => {
             return await apiClient.post(`/files/${id}/copy`, { destinationFolderId });
-        }
+        },
+        onSuccess: () => {
+            invalidateDriveQueries(queryClient);
+        },
     });
 };
 
@@ -132,10 +151,15 @@ export const useMoveFolder = () => {
 };
 
 export const useCopyFolder = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: async ({ id, destinationFolderId }: { id: string; destinationFolderId: string | null }) => {
             return await apiClient.post(`/folders/${id}/copy`, { destinationFolderId });
-        }
+        },
+        onSuccess: () => {
+            invalidateDriveQueries(queryClient);
+        },
     });
 };
 

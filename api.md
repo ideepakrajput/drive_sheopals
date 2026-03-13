@@ -5,15 +5,18 @@
 - `POST /api/auth/login` - Authenticates user and creates session.
 - `POST /api/auth/logout` - Destroys user session.
 - `GET /api/users` - Lists registered users available for sharing.
+- `GET /api/users/me/storage` - Returns the current user's storage usage and assigned limit.
+- `GET /api/users/storage` - Lists all users with storage usage and assigned limits.
+- `PATCH /api/users/storage` - Updates a user's assigned storage limit.
 
 ### Files
 - `GET /api/files` - Retrieves all active (non-trashed) files for the user.
-- `POST /api/files/upload` - Uploads a new file and creates database entry.
+- `POST /api/files/upload` - Uploads a new file and creates a database entry if the user has enough storage left.
 - `GET /api/files/[id]/download` - Streams file content for download or preview.
 - `PATCH /api/files/[id]` - Renames an existing file.
 - `POST /api/files/[id]/move` - Moves a file to another folder or root.
-- `POST /api/files/[id]/copy` - Copies a file to another folder or root.
-- `DELETE /api/files/[id]` - Permanently deletes a file from disk and database.
+- `POST /api/files/[id]/copy` - Copies a file to another folder or root if the user has enough storage left.
+- `DELETE /api/files/[id]` - Permanently deletes a file from disk and database and frees its storage usage.
 - `GET /api/files/[id]/share` - Lists users this file is shared with.
 - `POST /api/files/[id]/share` - Shares a file with a registered user by email.
 - `DELETE /api/files/[id]/share` - Removes a user's access to a shared file.
@@ -28,8 +31,8 @@
 - `GET /api/folders/[id]` - Retrieves contents (files/subfolders) of a specific folder.
 - `PATCH /api/folders/[id]` - Renames an existing folder.
 - `POST /api/folders/[id]/move` - Moves a folder to another parent or root.
-- `POST /api/folders/[id]/copy` - Copies a folder tree to another parent or root.
-- `DELETE /api/folders/[id]` - Permanently deletes a folder.
+- `POST /api/folders/[id]/copy` - Copies a folder tree to another parent or root if the user has enough storage left.
+- `DELETE /api/folders/[id]` - Permanently deletes a folder, its disk contents, and frees its storage usage.
 - `GET /api/folders/[id]/share` - Lists users this folder is shared with.
 - `POST /api/folders/[id]/share` - Shares a folder recursively with a registered user by email.
 - `DELETE /api/folders/[id]/share` - Removes a user's access to a shared folder tree.

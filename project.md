@@ -105,6 +105,7 @@ name
 otp_code
 otp_expiry
 storage_used (int, bytes)
+storage_limit (int, bytes)
 created_at
 ```
 

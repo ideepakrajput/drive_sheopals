@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
   otp_code VARCHAR(10),
   otp_expiry DATETIME,
   storage_used BIGINT DEFAULT 0,
+  storage_limit BIGINT DEFAULT 5368709120,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

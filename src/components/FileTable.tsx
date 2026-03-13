@@ -28,7 +28,7 @@ function formatFileSize(size: number) {
     return `${(size / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export default function FileTable({ files }: { files: any[] }) {
+export default function FileTable({ files, showSearch = true }: { files: any[]; showSearch?: boolean }) {
     const [previewFile, setPreviewFile] = useState<any | null>(null);
     const [sorting, setSorting] = useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = useState("");
@@ -144,20 +144,22 @@ export default function FileTable({ files }: { files: any[] }) {
 
     return (
         <>
-            <div className="mb-4 flex items-center justify-between gap-4">
-                <div className="relative w-full max-w-sm">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
-                    <input
-                        value={globalFilter}
-                        onChange={(e) => setGlobalFilter(e.target.value)}
-                        placeholder="Search files..."
-                        className="h-11 w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-4 text-sm text-neutral-900 shadow-sm outline-none transition-colors focus:border-black dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white"
-                    />
+            {showSearch && (
+                <div className="mb-4 flex items-center justify-between gap-4">
+                    <div className="relative w-full max-w-sm">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
+                        <input
+                            value={globalFilter}
+                            onChange={(e) => setGlobalFilter(e.target.value)}
+                            placeholder="Search files..."
+                            className="h-11 w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-4 text-sm text-neutral-900 shadow-sm outline-none transition-colors focus:border-black dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white"
+                        />
+                    </div>
+                    <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                        {table.getRowModel().rows.length} files
+                    </div>
                 </div>
-                <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                    {table.getRowModel().rows.length} files
-                </div>
-            </div>
+            )}
 
             <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                 <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-800">

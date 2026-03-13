@@ -1,7 +1,6 @@
 'use client';
 
 import {
-    Search,
     Bell,
     Settings,
     LogOut,
@@ -31,18 +30,7 @@ export function Header() {
 
     return (
         <header className="h-16 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center justify-between px-6 z-10 transition-colors">
-            <div className="flex-1 flex max-w-2xl">
-                <div className="relative w-full max-w-md hidden sm:block">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-4 w-4 text-neutral-400 dark:text-neutral-500" />
-                    </div>
-                    <input
-                        type="text"
-                        className="block w-full pl-10 pr-3 py-2 border border-neutral-200 dark:border-neutral-800 rounded-xl leading-5 bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-300 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black dark:focus:ring-white sm:text-sm transition-all shadow-sm"
-                        placeholder="Search in Sheopal's Drive..."
-                    />
-                </div>
-            </div>
+            <div className="flex-1" />
             <div className="flex items-center space-x-4">
                 <button className="text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
                     <Settings className="w-5 h-5" />

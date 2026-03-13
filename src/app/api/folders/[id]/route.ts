@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { pool } from "@/lib/db";
+import fs from "fs/promises";
+import path from "path";
 import { getDescendantFolderIds, getFolderAccess, removeResourceShares } from "@/lib/sharing";
+import { ensureFolderExists, getFolderPhysicalPath, getUserDrivePath, pathExists } from "@/lib/server-utils";
 
 export async function PATCH(
     request: NextRequest,
@@ -24,6 +27,31 @@ export async function PATCH(
         const access = await getFolderAccess(id, userId);
         if (!access.allowed || (!access.isOwner && access.permission !== "edit")) {
             return NextResponse.json({ error: "Folder not found or unauthorized" }, { status: 404 });
+        }
+
+        const [folders]: any = await pool.query(
+            "SELECT id, name, parent_folder_id FROM folders WHERE id = ? AND owner_id = ? LIMIT 1",
+            [id, userId]
+        );
+
+        if (folders.length === 0) {
+            return NextResponse.json({ error: "Folder not found or unauthorized" }, { status: 404 });
+        }
+
+        const folder = folders[0];
+        const oldPath = await getFolderPhysicalPath(userId, id);
+        const parentPath = folder.parent_folder_id
+            ? await getFolderPhysicalPath(userId, folder.parent_folder_id)
+            : getUserDrivePath(userId);
+        await ensureFolderExists(parentPath);
+        const newPath = path.join(parentPath, name);
+
+        if (oldPath !== newPath && await pathExists(newPath)) {
+            return NextResponse.json({ error: "A folder with that name already exists here" }, { status: 409 });
+        }
+
+        if (oldPath !== newPath && await pathExists(oldPath)) {
+            await fs.rename(oldPath, newPath);
         }
 
         const [result]: any = await pool.query(

@@ -32,7 +32,7 @@ export function Sidebar() {
                 <div className="w-8 h-8 rounded-lg bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-sm">
                     <Cloud className="w-5 h-5" />
                 </div>
-                <span className="text-neutral-900 dark:text-white font-semibold text-lg tracking-wide">Drive</span>
+                <span className="text-neutral-900 dark:text-white font-semibold text-lg tracking-wide">Sheopal&apos;s Drive</span>
             </div>
 
             <div className="px-4 pb-6">

@@ -11,6 +11,8 @@
 - `POST /api/files/upload` - Uploads a new file and creates database entry.
 - `GET /api/files/[id]/download` - Streams file content for download or preview.
 - `PATCH /api/files/[id]` - Renames an existing file.
+- `POST /api/files/[id]/move` - Moves a file to another folder or root.
+- `POST /api/files/[id]/copy` - Copies a file to another folder or root.
 - `DELETE /api/files/[id]` - Permanently deletes a file from disk and database.
 - `GET /api/files/[id]/share` - Lists users this file is shared with.
 - `POST /api/files/[id]/share` - Shares a file with a registered user by email.
@@ -21,9 +23,12 @@
 
 ### Folders
 - `GET /api/folders` - Retrieves all root-level folders for the user.
+- `GET /api/folders/options` - Lists all active folders for folder pickers.
 - `POST /api/folders` - Creates a new folder.
 - `GET /api/folders/[id]` - Retrieves contents (files/subfolders) of a specific folder.
 - `PATCH /api/folders/[id]` - Renames an existing folder.
+- `POST /api/folders/[id]/move` - Moves a folder to another parent or root.
+- `POST /api/folders/[id]/copy` - Copies a folder tree to another parent or root.
 - `DELETE /api/folders/[id]` - Permanently deletes a folder.
 - `GET /api/folders/[id]/share` - Lists users this folder is shared with.
 - `POST /api/folders/[id]/share` - Shares a folder recursively with a registered user by email.

@@ -99,6 +99,46 @@ export const useDeleteFolder = () => {
     });
 };
 
+export const useListFolderOptions = () => {
+    return useMutation({
+        mutationFn: async () => {
+            return await apiClient.get('/folders/options');
+        }
+    });
+};
+
+export const useMoveFile = () => {
+    return useMutation({
+        mutationFn: async ({ id, destinationFolderId }: { id: string; destinationFolderId: string | null }) => {
+            return await apiClient.post(`/files/${id}/move`, { destinationFolderId });
+        }
+    });
+};
+
+export const useCopyFile = () => {
+    return useMutation({
+        mutationFn: async ({ id, destinationFolderId }: { id: string; destinationFolderId: string | null }) => {
+            return await apiClient.post(`/files/${id}/copy`, { destinationFolderId });
+        }
+    });
+};
+
+export const useMoveFolder = () => {
+    return useMutation({
+        mutationFn: async ({ id, destinationFolderId }: { id: string; destinationFolderId: string | null }) => {
+            return await apiClient.post(`/folders/${id}/move`, { destinationFolderId });
+        }
+    });
+};
+
+export const useCopyFolder = () => {
+    return useMutation({
+        mutationFn: async ({ id, destinationFolderId }: { id: string; destinationFolderId: string | null }) => {
+            return await apiClient.post(`/folders/${id}/copy`, { destinationFolderId });
+        }
+    });
+};
+
 export const useListFileShares = () => {
     return useMutation({
         mutationFn: async (id: string) => {

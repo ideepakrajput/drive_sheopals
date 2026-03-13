@@ -55,7 +55,7 @@ export default function LoginPage() {
                         </svg>
                     </div>
                     <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50 mb-1">Sign In</h1>
-                    <p className="text-neutral-500 dark:text-neutral-400 text-sm">Continue to Drive Workspace</p>
+                    <p className="text-neutral-500 dark:text-neutral-400 text-sm">Continue to Sheopal&apos;s Drive</p>
                 </div>
 
                 {error && (

@@ -1,10 +1,22 @@
 "use client";
 
-import { Download, MoreVertical, Star, Edit2, Info, Trash2, ExternalLink, Share2 } from "lucide-react";
+import { Copy, Download, Edit2, ExternalLink, Info, MoreVertical, MoveRight, Share2, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useDeleteFile, useListFileShares, useRenameFile, useRestoreFile, useShareFile, useStarFile, useTrashFile, useUnshareFile } from "@/hooks/use-files";
+import {
+    useCopyFile,
+    useDeleteFile,
+    useListFileShares,
+    useListFolderOptions,
+    useMoveFile,
+    useRenameFile,
+    useRestoreFile,
+    useShareFile,
+    useStarFile,
+    useTrashFile,
+    useUnshareFile,
+} from "@/hooks/use-files";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -24,12 +36,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import ShareDialog from "./ShareDialog";
+import MoveCopyDialog from "./MoveCopyDialog";
 
 export default function FileActions({ file }: { file: any }) {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isRenaming, setIsRenaming] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [isSharingOpen, setIsSharingOpen] = useState(false);
+    const [isMoveOpen, setIsMoveOpen] = useState(false);
+    const [isCopyOpen, setIsCopyOpen] = useState(false);
     const [newName, setNewName] = useState(file.original_name);
     const [starred, setStarred] = useState(!!file.is_starred);
     const router = useRouter();
@@ -42,6 +58,9 @@ export default function FileActions({ file }: { file: any }) {
     const { mutateAsync: trashFile } = useTrashFile();
     const { mutateAsync: restoreFile } = useRestoreFile();
     const { mutateAsync: deleteFile } = useDeleteFile();
+    const { mutateAsync: listFolderOptions } = useListFolderOptions();
+    const { mutateAsync: moveFile } = useMoveFile();
+    const { mutateAsync: copyFile } = useCopyFile();
     const { mutateAsync: listShares } = useListFileShares();
     const { mutateAsync: shareFile } = useShareFile();
     const { mutateAsync: unshareFile } = useUnshareFile();
@@ -96,14 +115,14 @@ export default function FileActions({ file }: { file: any }) {
         if (!isOwner) return;
 
         const toggle = !starred;
-        setStarred(toggle); // Optimistic UI
+        setStarred(toggle);
 
         try {
             await starFile({ id: file.id, starred: toggle });
             toast.success(toggle ? "Added to starred" : "Removed from starred");
             router.refresh();
-        } catch (error) {
-            setStarred(!toggle); // Rollback
+        } catch {
+            setStarred(!toggle);
             toast.error("Failed to update star status");
         }
     };
@@ -114,7 +133,7 @@ export default function FileActions({ file }: { file: any }) {
             await trashFile(file.id);
             toast.success("Moved to trash", { id: toastId });
             router.refresh();
-        } catch (error: any) {
+        } catch {
             toast.error("Failed to move to trash", { id: toastId });
         }
     };
@@ -125,20 +144,20 @@ export default function FileActions({ file }: { file: any }) {
             await restoreFile(file.id);
             toast.success("File restored", { id: toastId });
             router.refresh();
-        } catch (error: any) {
+        } catch {
             toast.error("Failed to restore", { id: toastId });
         }
     };
 
     const handleDelete = async () => {
         if (!confirm("Are you sure you want to delete this file permanently? This action cannot be undone.")) return;
-        
+
         const toastId = toast.loading("Deleting permanently...");
         try {
             await deleteFile(file.id);
-            toast.success("File deleted permanent", { id: toastId });
+            toast.success("File deleted permanently", { id: toastId });
             router.refresh();
-        } catch (error: any) {
+        } catch {
             toast.error("Failed to delete", { id: toastId });
         }
     };
@@ -158,7 +177,7 @@ export default function FileActions({ file }: { file: any }) {
                     <Download className="w-5 h-5" />
                 </button>
 
-                <DropdownMenu>
+                <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                     <DropdownMenuTrigger asChild>
                         <button
                             onClick={(e) => e.stopPropagation()}
@@ -171,52 +190,64 @@ export default function FileActions({ file }: { file: any }) {
                     <DropdownMenuContent
                         align="end"
                         onClick={(e) => e.stopPropagation()}
-                        className="w-48 bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[130] shadow-2xl"
+                        className="w-52 bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[130] shadow-2xl"
                     >
                         {file.is_trashed ? (
                             <>
-                                <DropdownMenuItem className="cursor-pointer" onSelect={handleRestore}>
+                                <DropdownMenuItem className="cursor-pointer" onClick={() => { setIsMenuOpen(false); handleRestore(); }}>
                                     <ExternalLink className="mr-2 h-4 w-4" />
                                     <span>Restore</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator className="opacity-20" />
-                                <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onSelect={handleDelete}>
+                                <DropdownMenuItem className="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" onClick={() => { setIsMenuOpen(false); handleDelete(); }}>
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     <span>Delete permanently</span>
                                 </DropdownMenuItem>
                             </>
                         ) : (
                             <>
-                                <DropdownMenuItem onSelect={handleDownload}>
+                                <DropdownMenuItem onClick={() => { setIsMenuOpen(false); handleDownload(); }}>
                                     <Download className="mr-2 h-4 w-4" />
                                     <span>Download</span>
                                 </DropdownMenuItem>
                                 {isOwner && (
-                                    <DropdownMenuItem onSelect={handleStar}>
+                                    <DropdownMenuItem onClick={() => { setIsMenuOpen(false); handleStar(); }}>
                                         <Star className={`mr-2 h-4 w-4 ${starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
                                         <span>{starred ? "Unstar" : "Star"}</span>
                                     </DropdownMenuItem>
                                 )}
                                 {canEdit && (
-                                    <DropdownMenuItem onSelect={() => setIsRenaming(true)}>
+                                    <DropdownMenuItem onClick={() => { setIsMenuOpen(false); setIsRenaming(true); }}>
                                         <Edit2 className="mr-2 h-4 w-4" />
                                         <span>Rename</span>
                                     </DropdownMenuItem>
                                 )}
+                                {isOwner && (
+                                    <>
+                                        <DropdownMenuItem onClick={() => { setIsMenuOpen(false); setIsMoveOpen(true); }}>
+                                            <MoveRight className="mr-2 h-4 w-4" />
+                                            <span>Move</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => { setIsMenuOpen(false); setIsCopyOpen(true); }}>
+                                            <Copy className="mr-2 h-4 w-4" />
+                                            <span>Copy</span>
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
                                 {canManageShares && (
-                                    <DropdownMenuItem onSelect={() => setIsSharingOpen(true)}>
+                                    <DropdownMenuItem onClick={() => { setIsMenuOpen(false); setIsSharingOpen(true); }}>
                                         <Share2 className="mr-2 h-4 w-4" />
                                         <span>Share</span>
                                     </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem onSelect={() => setIsDetailsOpen(true)}>
+                                <DropdownMenuItem onClick={() => { setIsMenuOpen(false); setIsDetailsOpen(true); }}>
                                     <Info className="mr-2 h-4 w-4" />
                                     <span>Details</span>
                                 </DropdownMenuItem>
                                 {canEdit && (
                                     <>
                                         <DropdownMenuSeparator className="opacity-20" />
-                                        <DropdownMenuItem className="text-red-600 dark:text-red-400 cursor-pointer" onSelect={handleTrash}>
+                                        <DropdownMenuItem className="text-red-600 dark:text-red-400 cursor-pointer" onClick={() => { setIsMenuOpen(false); handleTrash(); }}>
                                             <Trash2 className="mr-2 h-4 w-4" />
                                             <span>Move to trash</span>
                                         </DropdownMenuItem>
@@ -228,7 +259,6 @@ export default function FileActions({ file }: { file: any }) {
                 </DropdownMenu>
             </div>
 
-            {/* Rename Dialog */}
             <Dialog open={isRenaming} onOpenChange={setIsRenaming}>
                 <DialogContent className="sm:max-w-[425px] bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[140] shadow-2xl">
                     <form onSubmit={handleRename}>
@@ -264,7 +294,6 @@ export default function FileActions({ file }: { file: any }) {
                 </DialogContent>
             </Dialog>
 
-            {/* Details Dialog */}
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <DialogContent className="bg-background/80 backdrop-blur-xl border-border/50 text-foreground z-[140] shadow-2xl">
                     <DialogHeader>
@@ -301,6 +330,38 @@ export default function FileActions({ file }: { file: any }) {
                     loadShares={async () => await listShares(file.id) as { shares?: any[] }}
                     createShare={async (payload) => await shareFile({ id: file.id, ...payload }) as { shares?: any[] }}
                     removeShare={async ({ sharedWithUserId }) => await unshareFile({ id: file.id, sharedWithUserId }) as { shares?: any[] }}
+                />
+            )}
+
+            {isOwner && (
+                <MoveCopyDialog
+                    open={isMoveOpen}
+                    onOpenChange={setIsMoveOpen}
+                    mode="move"
+                    resourceType="file"
+                    itemName={file.original_name}
+                    currentFolderId={file.folder_id || null}
+                    loadFolders={async () => await listFolderOptions() as { folders?: any[] }}
+                    submitAction={async ({ destinationFolderId }) => {
+                        await moveFile({ id: file.id, destinationFolderId });
+                        router.refresh();
+                    }}
+                />
+            )}
+
+            {isOwner && (
+                <MoveCopyDialog
+                    open={isCopyOpen}
+                    onOpenChange={setIsCopyOpen}
+                    mode="copy"
+                    resourceType="file"
+                    itemName={file.original_name}
+                    currentFolderId={file.folder_id || null}
+                    loadFolders={async () => await listFolderOptions() as { folders?: any[] }}
+                    submitAction={async ({ destinationFolderId }) => {
+                        await copyFile({ id: file.id, destinationFolderId });
+                        router.refresh();
+                    }}
                 />
             )}
         </>

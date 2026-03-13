@@ -6,15 +6,15 @@ Below is a **clear product description + technical structure** you can use to bu
 
 ## Overview
 
-Sheopal's Drive is a **secure internal file management platform** that enables teams to **store, organize, and share files and folders** with controlled access. The platform is designed to provide a **Google Drive-like experience** that is optimized for **small teams (10–20 users)** and hosted on a **private server**.
+Sheopal's Drive is a **secure internal file management platform** that enables teams to **store, organize, and share files and folders** with controlled access. The platform is designed to provide a **Sheopal's Drive experience** optimized for **small teams (10–20 users)** and hosted on a **private server**.
 
 It allows users to upload files, organize them into deep folder structures, securely share them with team members, and manage everything through a familiar, modern UI using **passwordless email-based OTP authentication**.
 
 ---
 
-# Key Features (Drive-Like Experience)
+# Key Features (Sheopal's Drive Experience)
 
-### 1. Core Drive Capabilities
+### 1. Core Sheopal's Drive Capabilities
 
 Users can manage files and folders with an intuitive, seamless experience.
 
@@ -64,7 +64,7 @@ A modern UI optimized for productivity and familiarity.
 
 Next.js (App Router recommended)
 
-- **UI & Experience:** Google Drive clone interface, Context Menus, File previews.
+- **UI & Experience:** Sheopal's Drive interface, Context Menus, File previews.
 - **State Management:** Zustand for global state, React Query for server data syncing.
 - **Styling:** TailwindCSS with Radix UI / shadcn/ui for accessible dropdowns and dialogs.
 - **Drag & Drop:** `react-dropzone` or `@dnd-kit/core` for advanced interactions.
@@ -202,7 +202,7 @@ created_at
 To launch the internal drive quickly and gather feedback:
 
 ✔ Email + OTP Login System
-✔ Google Drive-like Layout (Sidebar + Main Grid/List view)
+✔ Sheopal's Drive Layout (Sidebar + Main Grid/List view)
 ✔ Drag & Drop File Uploads
 ✔ Folder Creation & Navigation
 ✔ Right-Click Context Menus (Rename, Delete, Download)
@@ -210,7 +210,7 @@ To launch the internal drive quickly and gather feedback:
 ✔ Internal Sharing System (View/Edit)
 ✔ Storage File System Handlers
 
-This establishes a true **Drive-like foundation** that feels familiar, professional, and is fully functional.
+This establishes a true **Sheopal's Drive foundation** that feels familiar, professional, and is fully functional.
 
 ---
 

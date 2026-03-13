@@ -39,7 +39,7 @@ export function Header() {
                     <input
                         type="text"
                         className="block w-full pl-10 pr-3 py-2 border border-neutral-200 dark:border-neutral-800 rounded-xl leading-5 bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-300 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black dark:focus:ring-white sm:text-sm transition-all shadow-sm"
-                        placeholder="Search in Drive..."
+                        placeholder="Search in Sheopal's Drive..."
                     />
                 </div>
             </div>

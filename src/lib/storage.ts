@@ -1,6 +1,7 @@
 import { pool } from "@/lib/db";
 
 const DEFAULT_STORAGE_LIMIT = 5 * 1024 * 1024 * 1024;
+export const STORAGE_LIMIT_EXCEEDED_MESSAGE = "Storage limit exceeded. Contact your administrator.";
 let storageSchemaReady: Promise<void> | null = null;
 
 async function ensureStorageSchema() {
@@ -59,7 +60,7 @@ export async function ensureStorageAvailable(userId: string, additionalBytes: nu
     const { storageUsed, storageLimit } = await getUserStorage(userId);
 
     if (storageUsed + additionalBytes > storageLimit) {
-        throw new Error("Storage limit exceeded");
+        throw new Error(STORAGE_LIMIT_EXCEEDED_MESSAGE);
     }
 }
 

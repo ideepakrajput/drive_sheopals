@@ -5,7 +5,7 @@ import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 import { getFolderPath } from "@/lib/server-utils";
-import { adjustStorageUsage, ensureStorageAvailable } from "@/lib/storage";
+import { adjustStorageUsage, ensureStorageAvailable, STORAGE_LIMIT_EXCEEDED_MESSAGE } from "@/lib/storage";
 
 export async function POST(request: NextRequest) {
     try {
@@ -113,6 +113,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, fileId });
     } catch (error: any) {
         console.error("Upload error:", error);
+        if (error?.message === STORAGE_LIMIT_EXCEEDED_MESSAGE) {
+            return NextResponse.json({ error: STORAGE_LIMIT_EXCEEDED_MESSAGE }, { status: 400 });
+        }
         return NextResponse.json({ error: "Failed to upload file" }, { status: 500 });
     }
 }

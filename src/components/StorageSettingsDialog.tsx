@@ -73,13 +73,12 @@ export function StorageSettingsDialog({ open, onOpenChange }: StorageSettingsDia
             return;
         }
 
-        const storageLimitBytes = Math.round(parsedLimit * 1024 * 1024 * 1024);
         const toastId = toast.loading("Updating storage limit...");
 
         try {
             await updateUserStorageAsync({
                 userId: selectedUser.id,
-                storageLimitBytes,
+                storageLimitGb: parsedLimit,
             });
             toast.success("Storage limit updated", { id: toastId });
             onOpenChange(false);

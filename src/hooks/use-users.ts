@@ -37,8 +37,8 @@ export const useUpdateUserStorage = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ userId, storageLimitBytes }: { userId: string; storageLimitBytes: number }) => {
-            return await apiClient.patch("/users/storage", { userId, storageLimitBytes });
+        mutationFn: async ({ userId, storageLimitGb }: { userId: string; storageLimitGb: number }) => {
+            return await apiClient.patch("/users/storage", { userId, storageLimitGb });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["users-storage"] });

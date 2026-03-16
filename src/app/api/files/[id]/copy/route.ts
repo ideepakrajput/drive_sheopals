@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { getFileAccess } from "@/lib/sharing";
 import { ensureFolderExists, getFilePhysicalPath, getFolderPhysicalPath } from "@/lib/server-utils";
-import { adjustStorageUsage, ensureStorageAvailable } from "@/lib/storage";
+import { adjustStorageUsage, ensureStorageAvailable, STORAGE_LIMIT_EXCEEDED_MESSAGE } from "@/lib/storage";
 
 export async function POST(
     request: NextRequest,
@@ -76,6 +76,9 @@ export async function POST(
         return NextResponse.json({ success: true, fileId: newFileId });
     } catch (error) {
         console.error("Copy file error:", error);
+        if ((error as Error)?.message === STORAGE_LIMIT_EXCEEDED_MESSAGE) {
+            return NextResponse.json({ error: STORAGE_LIMIT_EXCEEDED_MESSAGE }, { status: 400 });
+        }
         return NextResponse.json({ error: "Failed to copy file" }, { status: 500 });
     }
 }

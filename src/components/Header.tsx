@@ -10,13 +10,11 @@ import {
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
-import { StorageSettingsDialog } from '@/components/StorageSettingsDialog';
 
 export function Header() {
     const router = useRouter();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
-    const [isStorageSettingsOpen, setIsStorageSettingsOpen] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -35,7 +33,7 @@ export function Header() {
             <div className="flex-1" />
             <div className="flex items-center space-x-4">
                 <button
-                    onClick={() => setIsStorageSettingsOpen(true)}
+                    onClick={() => router.push('/dashboard/admin/storage')}
                     className="text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
                     title="Storage Settings"
                 >
@@ -64,7 +62,6 @@ export function Header() {
                     <LogOut className="w-5 h-5" />
                 </button>
             </div>
-            <StorageSettingsDialog open={isStorageSettingsOpen} onOpenChange={setIsStorageSettingsOpen} />
         </header>
     );
 }

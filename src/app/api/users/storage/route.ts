@@ -24,14 +24,18 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { userId, storageLimitBytes } = await request.json();
+        const { userId, storageLimitGb, storageLimitBytes } = await request.json();
 
         if (!userId || typeof userId !== "string") {
             return NextResponse.json({ error: "User is required" }, { status: 400 });
         }
 
-        const parsedLimit = Number(storageLimitBytes);
-        if (!Number.isFinite(parsedLimit) || parsedLimit <= 0) {
+        const parsedLimitGb = storageLimitGb === undefined ? NaN : Number(storageLimitGb);
+        const parsedLimitBytes = storageLimitBytes === undefined
+            ? Math.round(parsedLimitGb * 1024 * 1024 * 1024)
+            : Number(storageLimitBytes);
+
+        if (!Number.isFinite(parsedLimitBytes) || parsedLimitBytes <= 0) {
             return NextResponse.json({ error: "Storage limit must be greater than 0" }, { status: 400 });
         }
 
@@ -42,14 +46,14 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        if (parsedLimit < targetUser.storageUsed) {
+        if (parsedLimitBytes < targetUser.storageUsed) {
             return NextResponse.json(
                 { error: "Storage limit cannot be smaller than current usage" },
                 { status: 400 }
             );
         }
 
-        await updateUserStorageLimit(userId, parsedLimit);
+        await updateUserStorageLimit(userId, parsedLimitBytes);
 
         return NextResponse.json({ success: true });
     } catch (error) {

@@ -60,6 +60,22 @@ export async function ensureUserAuthSchema() {
             );
         }
 
+        const [activeColumns]: any = await pool.query(
+            `SELECT COLUMN_NAME
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'users'
+               AND COLUMN_NAME = 'is_active'
+             LIMIT 1`
+        );
+
+        if (activeColumns.length === 0) {
+            await pool.query(
+                `ALTER TABLE users
+                 ADD COLUMN is_active BOOLEAN DEFAULT TRUE AFTER is_admin`
+            );
+        }
+
         await ensureAdminUser();
     })().catch((error) => {
         userSchemaReady = null;
@@ -81,8 +97,8 @@ export async function ensureAdminUser() {
 
     if (rows.length === 0) {
         await pool.query(
-            `INSERT INTO users (id, email, name, password_hash, is_admin)
-             VALUES (?, ?, ?, ?, TRUE)`,
+            `INSERT INTO users (id, email, name, password_hash, is_admin, is_active)
+             VALUES (?, ?, ?, ?, TRUE, TRUE)`,
             [crypto.randomUUID(), ADMIN_EMAIL, ADMIN_NAME, adminPasswordHash]
         );
         return;
@@ -90,7 +106,7 @@ export async function ensureAdminUser() {
 
     await pool.query(
         `UPDATE users
-         SET name = ?, password_hash = ?, is_admin = TRUE
+         SET name = ?, password_hash = ?, is_admin = TRUE, is_active = TRUE
          WHERE email = ?`,
         [ADMIN_NAME, adminPasswordHash, ADMIN_EMAIL]
     );

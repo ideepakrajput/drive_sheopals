@@ -7,6 +7,8 @@ type UserStorage = {
     name: string | null;
     storageUsed: number;
     storageLimit: number;
+    isAdmin: boolean;
+    isActive: boolean;
 };
 
 export const useMyStorage = () => {
@@ -53,6 +55,37 @@ export const useCreateUser = () => {
     return useMutation({
         mutationFn: async ({ name, email, storageLimitGb }: { name: string; email: string; storageLimitGb: number }) => {
             return await apiClient.post("/admin/users", { name, email, storageLimitGb });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["users-storage"] });
+        },
+    });
+};
+
+export const useUpdateUser = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            userId,
+            name,
+            email,
+            storageLimitGb,
+            isActive,
+        }: {
+            userId: string;
+            name: string;
+            email: string;
+            storageLimitGb: number;
+            isActive: boolean;
+        }) => {
+            return await apiClient.patch("/admin/users", {
+                userId,
+                name,
+                email,
+                storageLimitGb,
+                isActive,
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["users-storage"] });

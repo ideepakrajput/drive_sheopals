@@ -96,7 +96,7 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
         if (fileInputRef.current) fileInputRef.current.value = "";
         if (folderInputRef.current) folderInputRef.current.value = "";
         if (uploadedCount === 0) {
-            toast.error("No files were uploaded from the selected folder");
+            // toast.error("No files were uploaded from the selected folder");
         }
         router.refresh();
     };

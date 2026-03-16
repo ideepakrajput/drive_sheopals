@@ -83,7 +83,7 @@ export async function listUsersWithStorage() {
     await ensureStorageSchema();
 
     const [rows]: any = await pool.query(
-        `SELECT id, email, name, storage_used, storage_limit
+        `SELECT id, email, name, storage_used, storage_limit, is_admin, is_active
          FROM users
          ORDER BY COALESCE(name, email) ASC`
     );
@@ -94,6 +94,8 @@ export async function listUsersWithStorage() {
         name: row.name,
         storageUsed: Number(row.storage_used || 0),
         storageLimit: Number(row.storage_limit || DEFAULT_STORAGE_LIMIT),
+        isAdmin: Boolean(row.is_admin),
+        isActive: row.is_active === undefined ? true : Boolean(row.is_active),
     }));
 }
 

@@ -5,9 +5,11 @@ import { Search, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCreateUser, useUpdateUserStorage, useUsersStorage } from "@/hooks/use-users";
+import { useCreateUser, useUpdateUser, useUsersStorage } from "@/hooks/use-users";
 
 type LimitDrafts = Record<string, string>;
+type TextDrafts = Record<string, string>;
+type ActiveDrafts = Record<string, boolean>;
 
 function formatStorage(bytes: number) {
     if (bytes >= 1024 * 1024 * 1024) {
@@ -19,10 +21,13 @@ function formatStorage(bytes: number) {
 
 export function StorageAdminPanel() {
     const { data, isLoading } = useUsersStorage();
-    const { mutateAsync: updateUserStorageAsync, isPending } = useUpdateUserStorage();
+    const { mutateAsync: updateUserAsync, isPending } = useUpdateUser();
     const { mutateAsync: createUserAsync, isPending: isCreatingUser } = useCreateUser();
     const [search, setSearch] = useState("");
     const [limitDrafts, setLimitDrafts] = useState<LimitDrafts>({});
+    const [nameDrafts, setNameDrafts] = useState<TextDrafts>({});
+    const [emailDrafts, setEmailDrafts] = useState<TextDrafts>({});
+    const [activeDrafts, setActiveDrafts] = useState<ActiveDrafts>({});
     const [newUserName, setNewUserName] = useState("");
     const [newUserEmail, setNewUserEmail] = useState("");
     const [newUserLimitGb, setNewUserLimitGb] = useState("5");
@@ -34,10 +39,40 @@ export function StorageAdminPanel() {
         }
 
         setLimitDrafts((current) => {
+            const nextLimits = { ...current };
+            for (const user of users) {
+                if (!(user.id in nextLimits)) {
+                    nextLimits[user.id] = (user.storageLimit / 1024 / 1024 / 1024).toFixed(2);
+                }
+            }
+            return nextLimits;
+        });
+
+        setNameDrafts((current) => {
             const next = { ...current };
             for (const user of users) {
                 if (!(user.id in next)) {
-                    next[user.id] = (user.storageLimit / 1024 / 1024 / 1024).toFixed(2);
+                    next[user.id] = user.name || "";
+                }
+            }
+            return next;
+        });
+
+        setEmailDrafts((current) => {
+            const next = { ...current };
+            for (const user of users) {
+                if (!(user.id in next)) {
+                    next[user.id] = user.email;
+                }
+            }
+            return next;
+        });
+
+        setActiveDrafts((current) => {
+            const next = { ...current };
+            for (const user of users) {
+                if (!(user.id in next)) {
+                    next[user.id] = user.isActive;
                 }
             }
             return next;
@@ -62,16 +97,24 @@ export function StorageAdminPanel() {
             return;
         }
 
-        const toastId = toast.loading("Updating storage limit...");
+        if (!emailDrafts[userId]?.trim()) {
+            toast.error("Email is required");
+            return;
+        }
+
+        const toastId = toast.loading("Updating user...");
 
         try {
-            await updateUserStorageAsync({
+            await updateUserAsync({
                 userId,
+                name: nameDrafts[userId] || "",
+                email: emailDrafts[userId],
                 storageLimitGb: draftValue,
+                isActive: Boolean(activeDrafts[userId]),
             });
-            toast.success("Storage limit updated", { id: toastId });
+            toast.success("User updated", { id: toastId });
         } catch (error: any) {
-            toast.error(error.message || "Failed to update storage limit", { id: toastId });
+            toast.error(error.message || "Failed to update user", { id: toastId });
         }
     };
 
@@ -170,8 +213,9 @@ export function StorageAdminPanel() {
             </div>
 
             <div className="overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-                <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-4 border-b border-neutral-200 px-6 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+                <div className="grid grid-cols-[1.4fr_1.2fr_1fr_1fr_1fr_auto] gap-4 border-b border-neutral-200 px-6 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
                     <span>User</span>
+                    <span>Login</span>
                     <span>Used</span>
                     <span>Available</span>
                     <span>Limit (GB)</span>
@@ -194,11 +238,32 @@ export function StorageAdminPanel() {
                         return (
                             <div
                                 key={user.id}
-                                className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] items-center gap-4 border-b border-neutral-200 px-6 py-5 last:border-b-0 dark:border-neutral-800"
+                                className="grid grid-cols-[1.4fr_1.2fr_1fr_1fr_1fr_auto] items-center gap-4 border-b border-neutral-200 px-6 py-5 last:border-b-0 dark:border-neutral-800"
                             >
-                                <div className="space-y-1">
-                                    <p className="font-medium text-neutral-900 dark:text-white">{user.name || "Unnamed user"}</p>
-                                    <p className="text-sm text-neutral-500 dark:text-neutral-400">{user.email}</p>
+                                <div className="space-y-3">
+                                    <Input
+                                        value={nameDrafts[user.id] || ""}
+                                        onChange={(event) =>
+                                            setNameDrafts((current) => ({
+                                                ...current,
+                                                [user.id]: event.target.value,
+                                            }))
+                                        }
+                                        disabled={isPending || user.isAdmin}
+                                        placeholder="Full name"
+                                    />
+                                    <Input
+                                        type="email"
+                                        value={emailDrafts[user.id] || ""}
+                                        onChange={(event) =>
+                                            setEmailDrafts((current) => ({
+                                                ...current,
+                                                [user.id]: event.target.value,
+                                            }))
+                                        }
+                                        disabled={isPending || user.isAdmin}
+                                        placeholder="Email address"
+                                    />
                                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
                                         <div
                                             className="h-full rounded-full bg-black transition-all dark:bg-white"
@@ -206,6 +271,20 @@ export function StorageAdminPanel() {
                                         />
                                     </div>
                                 </div>
+                                <label className="inline-flex items-center gap-3 text-sm text-neutral-700 dark:text-neutral-300">
+                                    <input
+                                        type="checkbox"
+                                        checked={Boolean(activeDrafts[user.id])}
+                                        onChange={(event) =>
+                                            setActiveDrafts((current) => ({
+                                                ...current,
+                                                [user.id]: event.target.checked,
+                                            }))
+                                        }
+                                        disabled={isPending || user.isAdmin}
+                                    />
+                                    <span>{activeDrafts[user.id] ? "Enabled" : "Disabled"}</span>
+                                </label>
                                 <span className="text-sm text-neutral-700 dark:text-neutral-300">{formatStorage(user.storageUsed)}</span>
                                 <span className="text-sm text-neutral-700 dark:text-neutral-300">{formatStorage(remaining)}</span>
                                 <Input
@@ -221,8 +300,8 @@ export function StorageAdminPanel() {
                                     }
                                     disabled={isPending}
                                 />
-                                <Button onClick={() => handleSave(user.id)} disabled={isPending}>
-                                    Save
+                                <Button onClick={() => handleSave(user.id)} disabled={isPending || user.isAdmin}>
+                                    {user.isAdmin ? "Protected" : "Save"}
                                 </Button>
                             </div>
                         );

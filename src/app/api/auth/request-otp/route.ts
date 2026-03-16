@@ -4,6 +4,7 @@ import { sendOTP } from '@/lib/mail';
 import { ensureUserAuthSchema } from '@/lib/admin-auth';
 
 const USER_LOGIN_BLOCKED_MESSAGE = 'Only users added by the administrator can log in.';
+const USER_DISABLED_MESSAGE = 'Your account is disabled. Contact your administrator.';
 
 export async function POST(req: Request) {
     try {
@@ -20,12 +21,16 @@ export async function POST(req: Request) {
         const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
         const [rows]: any = await pool.query(
-            'SELECT id, is_admin FROM users WHERE email = ? LIMIT 1',
+            'SELECT id, is_admin, is_active FROM users WHERE email = ? LIMIT 1',
             [email]
         );
 
         if (rows.length === 0 || rows[0].is_admin) {
             return NextResponse.json({ error: USER_LOGIN_BLOCKED_MESSAGE }, { status: 403 });
+        }
+
+        if (!rows[0].is_active) {
+            return NextResponse.json({ error: USER_DISABLED_MESSAGE }, { status: 403 });
         }
 
         await pool.query(

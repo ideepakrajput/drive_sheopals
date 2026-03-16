@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { v4 as uuidv4 } from 'uuid';
 import { sendOTP } from '@/lib/mail';
+import { ensureUserAuthSchema } from '@/lib/admin-auth';
+
+const USER_LOGIN_BLOCKED_MESSAGE = 'Only users added by the administrator can log in.';
 
 export async function POST(req: Request) {
     try {
@@ -11,27 +13,25 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Email is required' }, { status: 400 });
         }
 
+        await ensureUserAuthSchema();
+
         // Generate a simple 6 digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
-        // Check if user exists
-        const [rows]: any = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+        const [rows]: any = await pool.query(
+            'SELECT id, is_admin FROM users WHERE email = ? LIMIT 1',
+            [email]
+        );
 
-        if (rows.length === 0) {
-            // For MVP, auto-create user if they don't exist
-            const newUserId = uuidv4();
-            await pool.query(
-                'INSERT INTO users (id, email, name, otp_code, otp_expiry) VALUES (?, ?, ?, ?, ?)',
-                [newUserId, email, email.split('@')[0], otp, expiry]
-            );
-        } else {
-            // Update existing user with new OTP
-            await pool.query(
-                'UPDATE users SET otp_code = ?, otp_expiry = ? WHERE email = ?',
-                [otp, expiry, email]
-            );
+        if (rows.length === 0 || rows[0].is_admin) {
+            return NextResponse.json({ error: USER_LOGIN_BLOCKED_MESSAGE }, { status: 403 });
         }
+
+        await pool.query(
+            'UPDATE users SET otp_code = ?, otp_expiry = ? WHERE email = ?',
+            [otp, expiry, email]
+        );
 
         try {
             await sendOTP(email, otp);

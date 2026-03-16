@@ -1,5 +1,5 @@
-import { StorageAdminPanel } from "@/components/StorageAdminPanel";
+import { redirect } from "next/navigation";
 
-export default function StorageAdminPage() {
-    return <StorageAdminPanel />;
+export default function LegacyStorageAdminRedirect() {
+    redirect("/admin/users");
 }

@@ -33,7 +33,7 @@ export function Header() {
             <div className="flex-1" />
             <div className="flex items-center space-x-4">
                 <button
-                    onClick={() => router.push('/dashboard/admin/storage')}
+                    onClick={() => router.push('/admin/dashboard')}
                     className="text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
                     title="Storage Settings"
                 >

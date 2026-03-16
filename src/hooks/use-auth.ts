@@ -17,3 +17,11 @@ export const useVerifyOtp = () => {
         },
     });
 };
+
+export const useAdminLogin = () => {
+    return useMutation({
+        mutationFn: async ({ email, password }: { email: string; password: string }) => {
+            return await apiClient.post('/auth/admin-login', { email, password });
+        },
+    });
+};

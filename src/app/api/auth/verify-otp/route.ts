@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { encrypt } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { ensureUserAuthSchema } from '@/lib/admin-auth';
 
 export async function POST(req: Request) {
     try {
@@ -11,9 +12,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Email and OTP are required' }, { status: 400 });
         }
 
-        // Verify OTP
+        await ensureUserAuthSchema();
+
         const [rows]: any = await pool.query(
-            'SELECT id, email, name FROM users WHERE email = ? AND otp_code = ? AND otp_expiry > NOW()',
+            'SELECT id, email, name, is_admin FROM users WHERE email = ? AND otp_code = ? AND otp_expiry > NOW() AND is_admin = FALSE',
             [email, otp]
         );
 
@@ -32,6 +34,7 @@ export async function POST(req: Request) {
                 id: user.id,
                 email: user.email,
                 name: user.name,
+                isAdmin: Boolean(user.is_admin),
             },
         });
 

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireAdminSession } from "@/lib/admin-auth";
 import { listUsersWithStorage, updateUserStorageLimit } from "@/lib/storage";
 
 export async function GET() {
     try {
-        const session = await getSession();
+        const session = await requireAdminSession();
         if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -19,7 +19,7 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
     try {
-        const session = await getSession();
+        const session = await requireAdminSession();
         if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }

@@ -5,7 +5,7 @@ import { Search, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useUpdateUserStorage, useUsersStorage } from "@/hooks/use-users";
+import { useCreateUser, useUpdateUserStorage, useUsersStorage } from "@/hooks/use-users";
 
 type LimitDrafts = Record<string, string>;
 
@@ -20,8 +20,12 @@ function formatStorage(bytes: number) {
 export function StorageAdminPanel() {
     const { data, isLoading } = useUsersStorage();
     const { mutateAsync: updateUserStorageAsync, isPending } = useUpdateUserStorage();
+    const { mutateAsync: createUserAsync, isPending: isCreatingUser } = useCreateUser();
     const [search, setSearch] = useState("");
     const [limitDrafts, setLimitDrafts] = useState<LimitDrafts>({});
+    const [newUserName, setNewUserName] = useState("");
+    const [newUserEmail, setNewUserEmail] = useState("");
+    const [newUserLimitGb, setNewUserLimitGb] = useState("5");
     const users = data?.users || [];
 
     useEffect(() => {
@@ -71,6 +75,37 @@ export function StorageAdminPanel() {
         }
     };
 
+    const handleCreateUser = async (event: React.FormEvent) => {
+        event.preventDefault();
+
+        const parsedLimit = Number(newUserLimitGb);
+        if (!newUserEmail.trim()) {
+            toast.error("Email is required");
+            return;
+        }
+
+        if (!Number.isFinite(parsedLimit) || parsedLimit <= 0) {
+            toast.error("Enter a valid storage limit in GB");
+            return;
+        }
+
+        const toastId = toast.loading("Creating user...");
+
+        try {
+            await createUserAsync({
+                name: newUserName.trim(),
+                email: newUserEmail.trim(),
+                storageLimitGb: parsedLimit,
+            });
+            setNewUserName("");
+            setNewUserEmail("");
+            setNewUserLimitGb("5");
+            toast.success("User created", { id: toastId });
+        } catch (error: any) {
+            toast.error(error.message || "Failed to create user", { id: toastId });
+        }
+    };
+
     return (
         <div className="p-8 space-y-8">
             <div className="space-y-3">
@@ -83,6 +118,43 @@ export function StorageAdminPanel() {
                         Limits are entered in GB and converted to bytes in the backend before saving.
                     </p>
                 </div>
+            </div>
+
+            <div className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                <div className="mb-5">
+                    <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Add User</h2>
+                    <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                        Only users created here can sign in with OTP.
+                    </p>
+                </div>
+                <form onSubmit={handleCreateUser} className="grid gap-4 md:grid-cols-[1fr_1fr_180px_auto]">
+                    <Input
+                        value={newUserName}
+                        onChange={(event) => setNewUserName(event.target.value)}
+                        placeholder="Full name"
+                        disabled={isCreatingUser}
+                    />
+                    <Input
+                        type="email"
+                        value={newUserEmail}
+                        onChange={(event) => setNewUserEmail(event.target.value)}
+                        placeholder="user@sheopals.in"
+                        disabled={isCreatingUser}
+                        required
+                    />
+                    <Input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={newUserLimitGb}
+                        onChange={(event) => setNewUserLimitGb(event.target.value)}
+                        placeholder="Storage GB"
+                        disabled={isCreatingUser}
+                    />
+                    <Button type="submit" disabled={isCreatingUser}>
+                        {isCreatingUser ? "Adding..." : "Add User"}
+                    </Button>
+                </form>
             </div>
 
             <div className="rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">

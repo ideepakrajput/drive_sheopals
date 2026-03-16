@@ -2,19 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, KeyRound, ArrowRight, Loader2 } from 'lucide-react';
-import { useRequestOtp, useVerifyOtp } from '@/hooks/use-auth';
+import { ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
+import { useAdminLogin, useRequestOtp, useVerifyOtp } from '@/hooks/use-auth';
 
 export default function LoginPage() {
     const router = useRouter();
+    const [mode, setMode] = useState<'user' | 'admin'>('user');
     const [step, setStep] = useState<'email' | 'otp'>('email');
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
     const { mutate: requestOtp, isPending: isRequestingOtp } = useRequestOtp();
     const { mutate: verifyOtp, isPending: isVerifyingOtp } = useVerifyOtp();
+    const { mutate: adminLogin, isPending: isAdminLoggingIn } = useAdminLogin();
 
     const handleRequestOtp = (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,6 +45,19 @@ export default function LoginPage() {
         });
     };
 
+    const handleAdminLogin = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        adminLogin({ email, password }, {
+            onSuccess: () => {
+                router.push('/admin/dashboard');
+            },
+            onError: (err: Error) => {
+                setError(err.message);
+            },
+        });
+    };
+
     return (
         <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center p-4 transition-colors">
             <div className="w-full max-w-sm bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-sm p-8 transition-colors">
@@ -58,13 +73,91 @@ export default function LoginPage() {
                     <p className="text-neutral-500 dark:text-neutral-400 text-sm">Continue to Sheopal&apos;s Drive</p>
                 </div>
 
+                <div className="mb-6 grid grid-cols-2 rounded-xl bg-neutral-100 p-1 dark:bg-neutral-800">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setMode('user');
+                            setStep('email');
+                            setError('');
+                        }}
+                        className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                            mode === 'user'
+                                ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-900 dark:text-white'
+                                : 'text-neutral-500 dark:text-neutral-400'
+                        }`}
+                    >
+                        User OTP
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setMode('admin');
+                            setStep('email');
+                            setError('');
+                        }}
+                        className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                            mode === 'admin'
+                                ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-900 dark:text-white'
+                                : 'text-neutral-500 dark:text-neutral-400'
+                        }`}
+                    >
+                        Admin
+                    </button>
+                </div>
+
                 {error && (
                     <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-lg text-center">
                         {error}
                     </div>
                 )}
 
-                {step === 'email' ? (
+                {mode === 'admin' ? (
+                    <form onSubmit={handleAdminLogin} className="space-y-5">
+                        <div>
+                            <label htmlFor="admin-email" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                                Admin Email
+                            </label>
+                            <input
+                                id="admin-email"
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="block w-full bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent transition-all"
+                                placeholder="admin@sheopals.in"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="admin-password" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                                Password
+                            </label>
+                            <input
+                                id="admin-password"
+                                type="password"
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="block w-full bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-800 rounded-xl px-4 py-2.5 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent transition-all"
+                                placeholder="Enter admin password"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={isAdminLoggingIn || !email || !password}
+                            className="w-full flex justify-center items-center py-2.5 px-4 rounded-xl shadow-sm text-sm font-medium text-white dark:text-black bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black dark:focus:ring-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {isAdminLoggingIn ? (
+                                <Loader2 className="animate-spin h-5 w-5" />
+                            ) : (
+                                <>
+                                    Admin Login <ShieldCheck className="ml-2 h-4 w-4" />
+                                </>
+                            )}
+                        </button>
+                    </form>
+                ) : step === 'email' ? (
                     <form onSubmit={handleRequestOtp} className="space-y-5">
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
@@ -119,7 +212,7 @@ export default function LoginPage() {
                                 maxLength={6}
                             />
                             <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-500 text-center">
-                                We sent a secure code to your email.
+                                We sent a secure code to your email. Only users added by the admin can log in.
                             </p>
                         </div>
 

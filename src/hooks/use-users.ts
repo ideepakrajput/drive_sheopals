@@ -46,3 +46,16 @@ export const useUpdateUserStorage = () => {
         },
     });
 };
+
+export const useCreateUser = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ name, email, storageLimitGb }: { name: string; email: string; storageLimitGb: number }) => {
+            return await apiClient.post("/admin/users", { name, email, storageLimitGb });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["users-storage"] });
+        },
+    });
+};

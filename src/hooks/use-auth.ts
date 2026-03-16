@@ -1,5 +1,16 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+
+export const useUser = () => {
+    return useQuery({
+        queryKey: ['user'],
+        queryFn: async () => {
+            const res = await apiClient.get('/auth/me') as { user: { id: string; email: string; name: string | null; isAdmin: boolean } };
+            return res.user;
+        },
+        retry: false,
+    });
+};
 
 export const useRequestOtp = () => {
     return useMutation({

@@ -178,6 +178,7 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
 
     const isImage = file.mime_type?.includes('image/');
     const isPDF = file.mime_type?.includes('pdf');
+    const isVideo = file.mime_type?.includes('video/');
 
     return (
         <div className="fixed inset-0 z-[100] bg-background/95 dark:bg-neutral-950/95 flex flex-col items-center justify-center text-foreground animate-in fade-in duration-200">
@@ -283,6 +284,16 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
                         className="w-full h-full max-w-4xl bg-white rounded-lg shadow-2xl"
                         title={file.original_name}
                     />
+                ) : isVideo ? (
+                    <video
+                        src={`/api/files/${file.id}/download?preview=1`}
+                        className="max-w-full max-h-full rounded-lg shadow-2xl bg-black"
+                        controls
+                        autoPlay
+                        playsInline
+                    >
+                        Your browser does not support video playback.
+                    </video>
                 ) : (
                     <div className="flex flex-col items-center justify-center bg-neutral-900 p-12 rounded-2xl border border-neutral-800 text-center">
                         <div className="w-20 h-20 bg-neutral-800 rounded-2xl flex items-center justify-center mb-6">
@@ -377,4 +388,3 @@ export default function FilePreview({ file: initialFile, allFiles, onClose }: Fi
         </div>
     );
 }
-

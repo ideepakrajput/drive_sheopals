@@ -198,7 +198,7 @@ export default function DriveExplorerPage({
                 </>
             )}
 
-            <BulkActionBar currentFolderId={uploadFolderId} />
+            <BulkActionBar currentFolderId={uploadFolderId} files={filteredFiles} />
         </div>
     );
 }

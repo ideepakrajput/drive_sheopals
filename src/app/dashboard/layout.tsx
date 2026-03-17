@@ -1,5 +1,6 @@
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
+import SelectionProvider from '@/components/SelectionProvider';
 
 export default function DashboardLayout({
     children,
@@ -12,7 +13,9 @@ export default function DashboardLayout({
             <div className="flex flex-col flex-1 w-0 overflow-hidden">
                 <Header />
                 <main className="flex-1 relative overflow-y-auto focus:outline-none bg-neutral-50 dark:bg-neutral-950">
-                    {children}
+                    <SelectionProvider>
+                        {children}
+                    </SelectionProvider>
                 </main>
             </div>
         </div>

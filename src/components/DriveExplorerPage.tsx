@@ -6,6 +6,8 @@ import { ChevronRight, Folder, Home, Search, Share2 } from "lucide-react";
 import FileTable from "@/components/FileTable";
 import FolderActions from "@/components/FolderActions";
 import FileUploadButton from "@/components/FileUploadButton";
+import BulkActionBar from "@/components/BulkActionBar";
+import { useSelection } from "@/hooks/use-selection";
 
 type Breadcrumb = {
     id: string;
@@ -38,6 +40,7 @@ export default function DriveExplorerPage({
     emptyDescription = "Drag and drop files here to upload",
 }: DriveExplorerPageProps) {
     const [search, setSearch] = useState("");
+    const { isFolderSelected, toggleFolder, selectionCount } = useSelection();
 
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -125,10 +128,35 @@ export default function DriveExplorerPage({
                                         "text-rose-500 fill-rose-500/20",
                                     ];
                                     const colorClass = colors[index % colors.length];
+                                    const isSelected = isFolderSelected(folder.id);
 
                                     return (
-                                        <div key={folder.id} className="group flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800">
-                                            <Link href={`/dashboard/folders/${folder.id}`} className="min-w-0 flex flex-1 items-center space-x-3 truncate">
+                                        <div
+                                            key={folder.id}
+                                            className={`group relative flex items-center justify-between rounded-xl border p-4 shadow-sm transition-all ${
+                                                isSelected
+                                                    ? "border-primary bg-primary/5 ring-1 ring-primary/30 dark:bg-primary/10"
+                                                    : "border-neutral-200 bg-white hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800"
+                                            }`}
+                                        >
+                                            {/* Checkbox */}
+                                            <div
+                                                className={`absolute left-2 top-2 z-10 transition-opacity ${
+                                                    isSelected || selectionCount > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                                                }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleFolder(folder.id);
+                                                    }}
+                                                    className="h-4 w-4 cursor-pointer rounded border-neutral-300 text-primary accent-primary dark:border-neutral-600"
+                                                />
+                                            </div>
+
+                                            <Link href={`/dashboard/folders/${folder.id}`} className="min-w-0 flex flex-1 items-center space-x-3 truncate pl-4">
                                                 <Folder className={`h-5 w-5 flex-shrink-0 ${colorClass}`} />
                                                 <div className="min-w-0">
                                                     <div className="flex items-center gap-2">
@@ -169,6 +197,8 @@ export default function DriveExplorerPage({
                     )}
                 </>
             )}
+
+            <BulkActionBar currentFolderId={uploadFolderId} />
         </div>
     );
 }

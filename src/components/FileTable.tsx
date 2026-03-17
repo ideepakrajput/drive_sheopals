@@ -13,6 +13,7 @@ import {
 import { ArrowUpDown, File, FileImage, FileText, Search, Share2, Star } from "lucide-react";
 import FileActions from "./FileActions";
 import FilePreview from "./FilePreview";
+import { useSelection } from "@/hooks/use-selection";
 
 function formatDate(value: string) {
     const date = new Date(value);
@@ -32,8 +33,40 @@ export default function FileTable({ files, showSearch = true }: { files: any[]; 
     const [previewFile, setPreviewFile] = useState<any | null>(null);
     const [sorting, setSorting] = useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = useState("");
+    const { isFileSelected, toggleFile, selectAllFiles, selectedFiles, selectionCount } = useSelection();
 
     const columns: ColumnDef<any>[] = [
+        {
+            id: "select",
+            header: () => {
+                const allFileIds = files.map((f) => f.id);
+                const allSelected = allFileIds.length > 0 && allFileIds.every((id) => isFileSelected(id));
+                return (
+                    <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={() => selectAllFiles(allFileIds)}
+                        className="h-4 w-4 cursor-pointer rounded border-neutral-300 text-primary accent-primary dark:border-neutral-600"
+                    />
+                );
+            },
+            cell: ({ row }) => {
+                const file = row.original;
+                return (
+                    <input
+                        type="checkbox"
+                        checked={isFileSelected(file.id)}
+                        onChange={(e) => {
+                            e.stopPropagation();
+                            toggleFile(file.id);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 cursor-pointer rounded border-neutral-300 text-primary accent-primary dark:border-neutral-600"
+                    />
+                );
+            },
+            enableSorting: false,
+        },
         {
             accessorKey: "original_name",
             header: ({ column }) => (
@@ -167,7 +200,11 @@ export default function FileTable({ files, showSearch = true }: { files: any[]; 
                         {table.getHeaderGroups().map((headerGroup) => (
                             <tr key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => (
-                                    <th key={header.id} scope="col" className="px-6 py-3 text-left">
+                                    <th
+                                        key={header.id}
+                                        scope="col"
+                                        className={`text-left ${header.column.id === "select" ? "w-10 px-3 py-3" : "px-6 py-3"}`}
+                                    >
                                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                                     </th>
                                 ))}
@@ -175,27 +212,40 @@ export default function FileTable({ files, showSearch = true }: { files: any[]; 
                         ))}
                     </thead>
                     <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-800 dark:bg-neutral-900">
-                        {table.getRowModel().rows.map((row) => (
-                            <tr
-                                key={row.id}
-                                className="group cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800"
-                                onClick={() => setPreviewFile(row.original)}
-                            >
-                                {row.getVisibleCells().map((cell) => (
-                                    <td
-                                        key={cell.id}
-                                        className={`px-6 py-4 ${
-                                            cell.column.id === "actions"
-                                                ? "whitespace-nowrap text-right text-sm font-medium"
-                                                : "whitespace-nowrap"
-                                        }`}
-                                        onClick={cell.column.id === "actions" ? (e) => e.stopPropagation() : undefined}
-                                    >
-                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </td>
-                                ))}
-                            </tr>
-                        ))}
+                        {table.getRowModel().rows.map((row) => {
+                            const isSelected = isFileSelected(row.original.id);
+                            return (
+                                <tr
+                                    key={row.id}
+                                    className={`group cursor-pointer transition-colors ${
+                                        isSelected
+                                            ? "bg-primary/5 dark:bg-primary/10"
+                                            : "hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                                    }`}
+                                    onClick={() => setPreviewFile(row.original)}
+                                >
+                                    {row.getVisibleCells().map((cell) => (
+                                        <td
+                                            key={cell.id}
+                                            className={`${
+                                                cell.column.id === "select"
+                                                    ? "w-10 px-3 py-4"
+                                                    : cell.column.id === "actions"
+                                                    ? "whitespace-nowrap px-6 py-4 text-right text-sm font-medium"
+                                                    : "whitespace-nowrap px-6 py-4"
+                                            }`}
+                                            onClick={
+                                                cell.column.id === "actions" || cell.column.id === "select"
+                                                    ? (e) => e.stopPropagation()
+                                                    : undefined
+                                            }
+                                        >
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </td>
+                                    ))}
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

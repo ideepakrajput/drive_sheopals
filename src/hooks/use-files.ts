@@ -1,5 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { AxiosProgressEvent } from 'axios';
 import { apiClient } from '@/lib/api-client';
+
+type UploadFileInput = {
+    file: File;
+    folderId?: string | null;
+    relativePath?: string;
+    signal?: AbortSignal;
+    onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
+};
 
 const invalidateDriveQueries = (queryClient: ReturnType<typeof useQueryClient>) => {
     queryClient.invalidateQueries({ queryKey: ['my-storage'] });
@@ -10,7 +19,7 @@ export const useUploadFile = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ file, folderId, relativePath }: { file: File; folderId?: string | null; relativePath?: string }) => {
+        mutationFn: async ({ file, folderId, relativePath, signal, onUploadProgress }: UploadFileInput) => {
             const formData = new FormData();
             formData.append('file', file);
             if (folderId) {
@@ -24,6 +33,8 @@ export const useUploadFile = () => {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
+                signal,
+                onUploadProgress,
             });
         },
         onSuccess: () => {

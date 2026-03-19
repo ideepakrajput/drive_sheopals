@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import type { AxiosProgressEvent } from "axios";
 import { Plus, FolderPlus, FileUp, FolderUp, Loader2 } from "lucide-react";
 import { useUploadFile } from "@/hooks/use-files";
 import { toast } from "sonner";
@@ -25,6 +26,38 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+type UploadQueueStatus = {
+    fileName: string;
+    progress: number;
+    timeRemaining: string;
+    currentIndex: number;
+    totalFiles: number;
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    return fallback;
+};
+
+const formatTimeRemaining = (ms: number | null) => {
+    if (ms === null || !Number.isFinite(ms) || ms <= 0) {
+        return "Calculating...";
+    }
+
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (minutes <= 0) {
+        return `${seconds}s remaining`;
+    }
+
+    return `${minutes}m ${seconds}s remaining`;
+};
+
 export function NewItemButton({ folderId = null }: { folderId?: string | null }) {
     const router = useRouter();
     
@@ -38,7 +71,43 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
     // File/Folder Upload Ref & Hook
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
+    const uploadStartedAtRef = useRef<number | null>(null);
+    const cancelRequestedRef = useRef(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
     const { mutateAsync: uploadFileAsync } = useUploadFile();
+    const [uploadStatus, setUploadStatus] = useState<UploadQueueStatus | null>(null);
+
+    const resetUploadState = () => {
+        uploadStartedAtRef.current = null;
+        cancelRequestedRef.current = false;
+        abortControllerRef.current = null;
+        setUploadStatus(null);
+    };
+
+    const createProgressHandler = (fileName: string, currentIndex: number, totalFiles: number) =>
+        (progressEvent: AxiosProgressEvent) => {
+            if (!progressEvent.total || progressEvent.total <= 0) {
+                return;
+            }
+
+            if (!uploadStartedAtRef.current) {
+                uploadStartedAtRef.current = Date.now();
+            }
+
+            const elapsedMs = Date.now() - uploadStartedAtRef.current;
+            const progress = Math.min(100, Math.round((progressEvent.loaded / progressEvent.total) * 100));
+            const uploadRate = elapsedMs > 0 ? progressEvent.loaded / elapsedMs : 0;
+            const remainingBytes = progressEvent.total - progressEvent.loaded;
+            const remainingMs = uploadRate > 0 ? remainingBytes / uploadRate : null;
+
+            setUploadStatus({
+                fileName,
+                progress,
+                timeRemaining: formatTimeRemaining(remainingMs),
+                currentIndex,
+                totalFiles,
+            });
+        };
 
     const handleCreateFolder = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -63,8 +132,8 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
             setIsNewFolderOpen(false);
             setFolderName("");
             router.refresh();
-        } catch (error: any) {
-            toast.error(error.message, { id: toastId });
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, "Failed to create folder"), { id: toastId });
         } finally {
             setIsCreatingFolder(false);
         }
@@ -75,37 +144,77 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
         if (!files || files.length === 0) return;
 
         let uploadedCount = 0;
+        cancelRequestedRef.current = false;
 
         for(let i = 0; i < files.length; i++) {
+           if (cancelRequestedRef.current) {
+               break;
+           }
+
            const file = files[i];
            const relativePath = file.webkitRelativePath || "";
 
            const displayName = file.name.includes('/') ? file.name.split('/').pop() || file.name : file.name;
+           const abortController = new AbortController();
+           abortControllerRef.current = abortController;
+           uploadStartedAtRef.current = Date.now();
+           setUploadStatus({
+               fileName: displayName,
+               progress: 0,
+               timeRemaining: "Calculating...",
+               currentIndex: i + 1,
+               totalFiles: files.length,
+           });
            
            const toastId = toast.loading(`Uploading ${displayName}...`);
            
            try {
-               await uploadFileAsync({ file, folderId, relativePath });
+               await uploadFileAsync({
+                   file,
+                   folderId,
+                   relativePath,
+                   signal: abortController.signal,
+                   onUploadProgress: createProgressHandler(displayName, i + 1, files.length),
+               });
                uploadedCount += 1;
                toast.success(`${displayName} uploaded`, { id: toastId });
-           } catch(error: any) {
-               toast.error(error.message || `Failed to upload ${displayName}`, { id: toastId });
+           } catch(error: unknown) {
+               if (abortController.signal.aborted) {
+                   toast.error(`Canceled ${displayName}`, { id: toastId });
+                   break;
+               }
+
+               toast.error(getErrorMessage(error, `Failed to upload ${displayName}`), { id: toastId });
            }
         }
         
         if (fileInputRef.current) fileInputRef.current.value = "";
         if (folderInputRef.current) folderInputRef.current.value = "";
-        if (uploadedCount === 0) {
-            // toast.error("No files were uploaded from the selected folder");
+        const wasCanceled = cancelRequestedRef.current;
+        resetUploadState();
+
+        if (uploadedCount > 0) {
+            router.refresh();
         }
-        router.refresh();
+
+        if (wasCanceled) {
+            toast.message("Upload canceled");
+        }
+    };
+
+    const handleCancelUpload = () => {
+        cancelRequestedRef.current = true;
+        abortControllerRef.current?.abort();
     };
 
     return (
         <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button className="w-full flex items-center justify-center space-x-2 bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white dark:text-black p-3 rounded-xl transition-colors shadow-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black dark:focus:ring-white dark:focus:ring-offset-neutral-950">
+                    <button
+                        disabled={!!uploadStatus}
+                        className="w-full flex items-center justify-center space-x-2 bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white dark:text-black p-3 rounded-xl transition-colors shadow-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black dark:focus:ring-white dark:focus:ring-offset-neutral-950 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
                         <Plus className="w-5 h-5" />
                         <span>New</span>
                     </button>
@@ -138,12 +247,41 @@ export function NewItemButton({ folderId = null }: { folderId?: string | null })
             {/* The webkitdirectory attribute allows folder selection */}
             <input
                 type="file"
-                // @ts-ignore
+                // @ts-expect-error webkitdirectory is supported by browsers but not included in React's typings.
                 webkitdirectory=""
+                multiple
                 className="hidden"
                 ref={folderInputRef}
                 onChange={handleFileUpload}
             />
+
+            {uploadStatus ? (
+                <div className="mt-3 rounded-xl border border-neutral-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                {uploadStatus.fileName}
+                            </p>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                Uploading {uploadStatus.currentIndex} of {uploadStatus.totalFiles}
+                            </p>
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={handleCancelUpload}>
+                            Cancel
+                        </Button>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
+                        <span>{uploadStatus.progress}% uploaded</span>
+                        <span>{uploadStatus.timeRemaining}</span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
+                        <div
+                            className="h-full rounded-full bg-black transition-[width] dark:bg-white"
+                            style={{ width: `${uploadStatus.progress}%` }}
+                        />
+                    </div>
+                </div>
+            ) : null}
 
             {/* New Folder Dialog */}
             <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>

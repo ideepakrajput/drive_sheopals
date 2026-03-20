@@ -1,30 +1,68 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { ChevronRight, Folder, Home, Search, Share2 } from "lucide-react";
+import { startTransition, useMemo, useRef, useState } from "react";
+import { ChevronRight, FileUp, Folder, Home, Search, Share2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import FileTable from "@/components/FileTable";
 import FolderActions from "@/components/FolderActions";
 import FileUploadButton from "@/components/FileUploadButton";
 import BulkActionBar from "@/components/BulkActionBar";
 import { useSelection } from "@/hooks/use-selection";
+import { useUploadFile } from "@/hooks/use-files";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import type { AxiosProgressEvent } from "axios";
+import {
+    estimateFinalizeDurationMs,
+    FINALIZE_PROGRESS_TICK_MS,
+    formatUploadTimeRemaining,
+    getTransferProgress,
+    getTransferTimeRemaining,
+    MAX_IN_PROGRESS_PERCENT,
+    PROGRESS_UI_UPDATE_INTERVAL_MS,
+    TRANSFER_PROGRESS_MAX_PERCENT,
+} from "@/lib/upload-progress";
 
 type Breadcrumb = {
     id: string;
     name: string;
 };
 
+type DriveFolder = {
+    id: string;
+    name?: string | null;
+    is_shared?: boolean;
+    shared_tooltip?: string | null;
+    is_owner?: boolean;
+    access_level?: string | null;
+};
+
+type DriveFile = {
+    id: string;
+    original_name?: string | null;
+    webkitRelativePath?: string;
+};
+
 type DriveExplorerPageProps = {
     title?: string;
     breadcrumbs?: Breadcrumb[];
     currentFolderName?: string;
-    folders: any[];
-    files: any[];
+    folders: DriveFolder[];
+    files: DriveFile[];
     allowUpload?: boolean;
     uploadFolderId?: string | null;
     sharedBanner?: string | null;
     emptyTitle?: string;
     emptyDescription?: string;
+};
+
+type DropUploadStatus = {
+    fileName: string;
+    progress: number;
+    timeRemaining: string;
+    currentIndex: number;
+    totalFiles: number;
 };
 
 export default function DriveExplorerPage({
@@ -39,8 +77,21 @@ export default function DriveExplorerPage({
     emptyTitle = "This folder is empty",
     emptyDescription = "Drag and drop files here to upload",
 }: DriveExplorerPageProps) {
+    const router = useRouter();
     const [search, setSearch] = useState("");
+    const [isDragActive, setIsDragActive] = useState(false);
+    const [isDropUploading, setIsDropUploading] = useState(false);
+    const [dropUploadStatus, setDropUploadStatus] = useState<DropUploadStatus | null>(null);
+    const dragDepthRef = useRef(0);
+    const uploadStartedAtRef = useRef<number | null>(null);
+    const finalizeStartedAtRef = useRef<number | null>(null);
+    const finalizeDurationMsRef = useRef<number | null>(null);
+    const finalizeIntervalRef = useRef<number | null>(null);
+    const lastProgressUiUpdateAtRef = useRef(0);
+    const lastProgressStatusKeyRef = useRef<string | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
     const { isFolderSelected, toggleFolder, selectionCount } = useSelection();
+    const { mutateAsync: uploadFileAsync } = useUploadFile();
 
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -60,8 +111,252 @@ export default function DriveExplorerPage({
 
     const isEmpty = filteredFolders.length === 0 && filteredFiles.length === 0;
 
+    const clearFinalizeAnimation = () => {
+        if (finalizeIntervalRef.current !== null) {
+            window.clearInterval(finalizeIntervalRef.current);
+            finalizeIntervalRef.current = null;
+        }
+
+        finalizeStartedAtRef.current = null;
+        finalizeDurationMsRef.current = null;
+    };
+
+    const resetDropUploadState = () => {
+        uploadStartedAtRef.current = null;
+        clearFinalizeAnimation();
+        lastProgressUiUpdateAtRef.current = 0;
+        lastProgressStatusKeyRef.current = null;
+        abortControllerRef.current = null;
+        setDropUploadStatus(null);
+        setIsDropUploading(false);
+    };
+
+    const startFinalizeAnimation = (fileName: string, currentIndex: number, totalFiles: number, fileSize: number) => {
+        if (finalizeStartedAtRef.current) {
+            return;
+        }
+
+        clearFinalizeAnimation();
+        const durationMs = estimateFinalizeDurationMs(fileSize);
+        finalizeStartedAtRef.current = Date.now();
+        finalizeDurationMsRef.current = durationMs;
+
+        const updateFinalizeStatus = () => {
+            if (!finalizeStartedAtRef.current || !finalizeDurationMsRef.current) {
+                return;
+            }
+
+            const elapsedMs = Date.now() - finalizeStartedAtRef.current;
+            const remainingMs = Math.max(finalizeDurationMsRef.current - elapsedMs, 0);
+            const finalizeRange = MAX_IN_PROGRESS_PERCENT - TRANSFER_PROGRESS_MAX_PERCENT;
+            const progress = Math.min(
+                MAX_IN_PROGRESS_PERCENT,
+                TRANSFER_PROGRESS_MAX_PERCENT + Math.round((elapsedMs / finalizeDurationMsRef.current) * finalizeRange)
+            );
+            const timeRemaining = remainingMs > 0 ? formatUploadTimeRemaining(remainingMs) : "Almost done...";
+            const statusKey = `${progress}-${timeRemaining}-${currentIndex}-${totalFiles}`;
+
+            lastProgressUiUpdateAtRef.current = Date.now();
+            lastProgressStatusKeyRef.current = statusKey;
+
+            setDropUploadStatus({
+                fileName,
+                progress,
+                timeRemaining,
+                currentIndex,
+                totalFiles,
+            });
+        };
+
+        updateFinalizeStatus();
+        finalizeIntervalRef.current = window.setInterval(updateFinalizeStatus, FINALIZE_PROGRESS_TICK_MS);
+    };
+
+    const createProgressHandler = (fileName: string, currentIndex: number, totalFiles: number, fileSize: number) =>
+        (progressEvent: AxiosProgressEvent) => {
+            if (!progressEvent.total || progressEvent.total <= 0) {
+                return;
+            }
+
+            if (!uploadStartedAtRef.current) {
+                uploadStartedAtRef.current = Date.now();
+            }
+
+            const elapsedMs = Date.now() - uploadStartedAtRef.current;
+            const hasTransferredAllBytes = progressEvent.loaded >= progressEvent.total;
+            const progress = getTransferProgress(progressEvent.loaded, progressEvent.total);
+            const timeRemaining = formatUploadTimeRemaining(
+                getTransferTimeRemaining({
+                    elapsedMs,
+                    fileSize,
+                    loaded: progressEvent.loaded,
+                    total: progressEvent.total,
+                })
+            );
+
+            if (hasTransferredAllBytes) {
+                startFinalizeAnimation(fileName, currentIndex, totalFiles, fileSize);
+                return;
+            }
+
+            const statusKey = `${progress}-${timeRemaining}-${currentIndex}-${totalFiles}`;
+            const now = Date.now();
+            const shouldUpdateUi =
+                statusKey !== lastProgressStatusKeyRef.current ||
+                now - lastProgressUiUpdateAtRef.current >= PROGRESS_UI_UPDATE_INTERVAL_MS;
+
+            if (!shouldUpdateUi) {
+                return;
+            }
+
+            lastProgressUiUpdateAtRef.current = now;
+            lastProgressStatusKeyRef.current = statusKey;
+
+            setDropUploadStatus({
+                fileName,
+                progress,
+                timeRemaining,
+                currentIndex,
+                totalFiles,
+            });
+        };
+
+    const uploadDroppedFiles = async (droppedFiles: File[]) => {
+        if (!allowUpload || droppedFiles.length === 0) {
+            return;
+        }
+
+        let uploadedCount = 0;
+        const toastId = toast.loading(
+            droppedFiles.length === 1 ? `Uploading ${droppedFiles[0].name}...` : `Uploading ${droppedFiles.length} files...`
+        );
+
+        setIsDropUploading(true);
+
+        try {
+            for (const [index, file] of droppedFiles.entries()) {
+                const abortController = new AbortController();
+                abortControllerRef.current = abortController;
+                uploadStartedAtRef.current = Date.now();
+                clearFinalizeAnimation();
+                setDropUploadStatus({
+                    fileName: file.name,
+                    progress: 0,
+                    timeRemaining: "Estimating time...",
+                    currentIndex: index + 1,
+                    totalFiles: droppedFiles.length,
+                });
+                lastProgressUiUpdateAtRef.current = Date.now();
+                lastProgressStatusKeyRef.current = `0-Estimating time...-${index + 1}-${droppedFiles.length}`;
+
+                await uploadFileAsync({
+                    file,
+                    folderId: uploadFolderId,
+                    relativePath: file.webkitRelativePath || "",
+                    signal: abortController.signal,
+                    onUploadProgress: createProgressHandler(file.name, index + 1, droppedFiles.length, file.size),
+                });
+                uploadedCount += 1;
+            }
+
+            toast.success(
+                uploadedCount === 1 ? "File uploaded successfully" : `${uploadedCount} files uploaded successfully`,
+                { id: toastId }
+            );
+
+            startTransition(() => {
+                router.refresh();
+            });
+        } catch (error: unknown) {
+            const message = error instanceof Error && error.message
+                ? error.message
+                : "Failed to upload dropped files";
+
+            toast.error(message, { id: toastId });
+        } finally {
+            resetDropUploadState();
+        }
+    };
+
+    const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+        if (!allowUpload || isDropUploading || !event.dataTransfer.types.includes("Files")) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        dragDepthRef.current += 1;
+        setIsDragActive(true);
+    };
+
+    const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+        if (!allowUpload || isDropUploading || !event.dataTransfer.types.includes("Files")) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = "copy";
+        setIsDragActive(true);
+    };
+
+    const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+        if (!allowUpload || isDropUploading || !event.dataTransfer.types.includes("Files")) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+
+        if (dragDepthRef.current === 0) {
+            setIsDragActive(false);
+        }
+    };
+
+    const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+        if (!allowUpload || isDropUploading) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        dragDepthRef.current = 0;
+        setIsDragActive(false);
+
+        const droppedFiles = Array.from(event.dataTransfer.files ?? []);
+        if (droppedFiles.length === 0) {
+            return;
+        }
+
+        await uploadDroppedFiles(droppedFiles);
+    };
+
     return (
-        <div className="p-8">
+        <div
+            className="relative p-8"
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
+            {allowUpload && isDragActive ? (
+                <div className="pointer-events-none absolute inset-4 z-20 flex items-center justify-center rounded-3xl border-2 border-dashed border-blue-500/70 bg-blue-500/10 backdrop-blur-[1px]">
+                    <div className="flex max-w-md flex-col items-center gap-3 px-6 text-center">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/15 text-blue-600 dark:text-blue-300">
+                            <FileUp className="h-7 w-7" />
+                        </div>
+                        <div>
+                            <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                Drop files to upload
+                            </p>
+                            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
+                                {uploadFolderId ? "Files will be uploaded into this folder." : "Files will be uploaded to your root drive."}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
             <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
                     {title ? (
@@ -106,6 +401,34 @@ export default function DriveExplorerPage({
                     {sharedBanner}
                 </div>
             )}
+
+            {dropUploadStatus ? (
+                <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                                {dropUploadStatus.fileName}
+                            </p>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                Uploading {dropUploadStatus.currentIndex} of {dropUploadStatus.totalFiles}
+                            </p>
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={() => abortControllerRef.current?.abort()}>
+                            Cancel
+                        </Button>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
+                        <span>{dropUploadStatus.progress}% uploaded</span>
+                        <span>{dropUploadStatus.timeRemaining}</span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
+                        <div
+                            className="h-full rounded-full bg-blue-600 transition-[width]"
+                            style={{ width: `${dropUploadStatus.progress}%` }}
+                        />
+                    </div>
+                </div>
+            ) : null}
 
             {isEmpty ? (
                 <div className="flex h-64 flex-col items-center justify-center text-neutral-500">

@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AxiosProgressEvent } from 'axios';
 import { apiClient } from '@/lib/api-client';
 
+const UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024;
+
 type UploadFileInput = {
     file: File;
     folderId?: string | null;
@@ -20,22 +22,77 @@ export const useUploadFile = () => {
 
     return useMutation({
         mutationFn: async ({ file, folderId, relativePath, signal, onUploadProgress }: UploadFileInput) => {
-            const formData = new FormData();
-            formData.append('file', file);
-            if (folderId) {
-                formData.append('folderId', folderId);
-            }
-            if (relativePath) {
-                formData.append('relativePath', relativePath);
-            }
+            let uploadId: string | null = null;
+            let isCompleted = false;
 
-            return await apiClient.post('/files/upload', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-                signal,
-                onUploadProgress,
-            });
+            const toAbortError = () => {
+                const error = new Error('Upload canceled');
+                error.name = 'AbortError';
+                return error;
+            };
+
+            const reportProgress = (loaded: number) => {
+                if (!onUploadProgress) {
+                    return;
+                }
+
+                onUploadProgress({
+                    loaded,
+                    total: file.size,
+                } as AxiosProgressEvent);
+            };
+
+            try {
+                if (signal?.aborted) {
+                    throw toAbortError();
+                }
+
+                const initiated = await apiClient.post('/uploads/initiate', {
+                    fileName: file.name,
+                    mimeType: file.type,
+                    size: file.size,
+                    folderId,
+                    relativePath,
+                }) as { uploadId: string };
+
+                uploadId = initiated.uploadId;
+                reportProgress(0);
+
+                for (let offset = 0; offset < file.size; offset += UPLOAD_CHUNK_SIZE) {
+                    if (signal?.aborted) {
+                        throw toAbortError();
+                    }
+
+                    const chunk = file.slice(offset, offset + UPLOAD_CHUNK_SIZE);
+
+                    await apiClient.post(`/uploads/${uploadId}/chunk`, chunk, {
+                        headers: {
+                            'Content-Type': 'application/octet-stream',
+                            'X-Upload-Offset': String(offset),
+                        },
+                        signal,
+                        onUploadProgress: (progressEvent) => {
+                            if (!onUploadProgress) {
+                                return;
+                            }
+
+                            reportProgress(Math.min(offset + progressEvent.loaded, file.size));
+                        },
+                    });
+
+                    reportProgress(Math.min(offset + chunk.size, file.size));
+                }
+
+                const completed = await apiClient.post(`/uploads/${uploadId}/complete`);
+                isCompleted = true;
+                return completed;
+            } catch (error) {
+                if (uploadId && !isCompleted) {
+                    await apiClient.delete(`/uploads/${uploadId}`).catch(() => undefined);
+                }
+
+                throw error;
+            }
         },
         onSuccess: () => {
             invalidateDriveQueries(queryClient);

@@ -20,6 +20,8 @@ export const useMyStorage = () => {
                 storageLimit: number;
             };
         },
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 };
 
@@ -32,6 +34,8 @@ export const useUsersStorage = (enabled = true) => {
             };
         },
         enabled,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 };
 

@@ -7,17 +7,17 @@ const adminRoutes = ['/admin'];
 
 export async function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
-    console.log(`Middleware checking path: ${path}`);
+    // console.log(`Middleware checking path: ${path}`);
 
     const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route));
     const isAdminRoute = adminRoutes.some(route => path.startsWith(route));
     const session = await getSession();
 
     if (isProtectedRoute) {
-        console.log(`Middleware session state:`, session);
+        // console.log(`Middleware session state:`, session);
 
         if (!session) {
-            console.log(`No active session found, redirecting to /login...`);
+            // console.log(`No active session found, redirecting to /login...`);
             return NextResponse.redirect(new URL('/login', request.url));
         }
 
